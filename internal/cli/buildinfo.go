@@ -120,8 +120,14 @@ func isPseudoVersion(version string) bool {
 }
 
 // pseudoVersion is Go's own shape: a fourteen-digit timestamp and a
-// twelve-character revision, wherever they sit in the string.
-var pseudoVersion = regexp.MustCompile(`-\d{14}-[0-9a-f]{12}`)
+// twelve-character revision.
+//
+// The separator before the timestamp is a dash when there is no known base
+// version and a dot when the base is a tag, so both forms are matched. A
+// pattern that accepted only the dash missed every pseudo-version built on a
+// repository that already had tags — which is every repository after its first
+// release.
+var pseudoVersion = regexp.MustCompile(`[-.]\d{14}-[0-9a-f]{12}`)
 
 // String is the single line a person reads.
 func (b Build) String() string {
