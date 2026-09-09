@@ -56,9 +56,9 @@ func UserAgent() string {
 // the fallback reads them back rather than inventing a placeholder.
 func buildInfo() Build {
 	b := Build{
-		Version: Version,
-		Commit:  Commit,
-		Date:    Date,
+		Version: usable(Version),
+		Commit:  usable(Commit),
+		Date:    usable(Date),
 		Go:      runtime.Version(),
 		OS:      runtime.GOOS,
 		Arch:    runtime.GOARCH,
@@ -128,6 +128,23 @@ func isPseudoVersion(version string) bool {
 // repository that already had tags — which is every repository after its first
 // release.
 var pseudoVersion = regexp.MustCompile(`[-.]\d{14}-[0-9a-f]{12}`)
+
+// usable discards a stamped value that says nothing.
+//
+// A build pipeline substitutes a template into -ldflags whether or not it has
+// anything to put there. A snapshot build stamped the commit as the literal
+// word "none" and the date as the zero time, and because a stamped value wins
+// over the recorded one, the binary then reported a commit that does not
+// exist instead of the revision Go had written into it. A placeholder is worse
+// than an absence: an absence falls back to the truth.
+func usable(v string) string {
+	switch strings.TrimSpace(v) {
+	case "", "none", "unknown", "dev", "snapshot",
+		"0001-01-01T00:00:00Z", "1970-01-01T00:00:00Z":
+		return ""
+	}
+	return strings.TrimSpace(v)
+}
 
 // String is the single line a person reads.
 func (b Build) String() string {

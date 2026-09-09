@@ -77,3 +77,27 @@ func TestShortCommitDoesNotPanicOnAnythingShort(t *testing.T) {
 		}
 	}
 }
+
+// TestPlaceholderStampsFallBackToTheTruth.
+//
+// A pipeline substitutes into -ldflags whether or not it has anything to put
+// there: a snapshot build stamped the commit as the literal word "none" and
+// the date as the zero time. A stamped value wins over the recorded one, so
+// the binary reported a commit that does not exist in place of the revision Go
+// had written into it. An absence is better than a placeholder, because an
+// absence falls back to the truth.
+func TestPlaceholderStampsFallBackToTheTruth(t *testing.T) {
+	for _, v := range []string{
+		"", "  ", "none", "unknown", "dev", "snapshot",
+		"0001-01-01T00:00:00Z", "1970-01-01T00:00:00Z",
+	} {
+		if got := usable(v); got != "" {
+			t.Errorf("usable(%q) = %q, want it discarded", v, got)
+		}
+	}
+	for _, v := range []string{"v1.2.3", "36bf72eab1db", "2026-09-09T12:00:00Z"} {
+		if got := usable(v); got != v {
+			t.Errorf("usable(%q) = %q, want it kept", v, got)
+		}
+	}
+}
