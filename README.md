@@ -2,12 +2,62 @@
 
 Statable analytics from the command line: a terminal, a script, or CI.
 
-Phases 1 and 2 of [STA-1269](https://linear.app/keyarg/issue/STA-1269).
+Sixteen commands over the [Stats API v1](https://statable.com/docs/developers/stats-api/).
 
 ## Install
 
+**Arch, and Omarchy**
+
+```bash
+yay -S statable-bin
+```
+
+**macOS and Linux, with Homebrew**
+
+```bash
+brew install key-arg/tap/statable
+```
+
+**Anywhere with a Go toolchain**
+
 ```bash
 go install github.com/key-arg/statable-cli/cmd/statable@latest
+```
+
+**mise**
+
+```bash
+mise use -g ubi:key-arg/statable-cli
+```
+
+**By hand.** Download the archive for your platform from the
+[releases page](https://github.com/key-arg/statable-cli/releases) and put the
+binary on your `PATH`. Each release also carries `checksums.txt`, signed
+keylessly, so you can check what you downloaded against who built it:
+
+```bash
+cosign verify-blob checksums.txt \
+  --certificate checksums.txt.pem \
+  --signature checksums.txt.sig \
+  --certificate-identity-regexp 'https://github\.com/key-arg/statable-cli/\.github/workflows/.+' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+sha256sum --check checksums.txt --ignore-missing
+```
+
+There is deliberately no `curl … | sh` installer. Piping a URL into a shell
+asks you to run whatever the server sends today, and it is the single loudest
+complaint the Omarchy project has had to answer for.
+
+### Completions and man pages
+
+The Homebrew cask and the AUR package install both. Installing by hand, they
+are in the archive under `completions/` and `manpages/`. `go install` builds
+only the binary, so generate the completion yourself:
+
+```bash
+statable completion zsh > "${fpath[1]}/_statable"
+statable completion bash > /etc/bash_completion.d/statable
+statable completion fish > ~/.config/fish/completions/statable.fish
 ```
 
 ## Use

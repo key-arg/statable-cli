@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The default token is read-only. Nothing here writes anything.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # The keyring, the terminal checks and the file permissions behave
+    # differently per platform, and this CLI has opinions about all three, so
+    # they are all exercised rather than assumed.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # GoReleaser and the version fallback both read the history.
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+      - run: go build ./...
+      - run: go vet ./...
+      # -race on every platform, and -shuffle because an order-dependent test
+      # is a test that passes for the wrong reason.
+      - run: go test -race -shuffle=on ./...
+
+  fuzz:
+    # A short run on every change, not a long one: the corpus in testdata is
+    # the durable part, and this only has to catch what a new parser breaks.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Fuzz the parsers
+        # Written out rather than looped. The loop this replaced relied on the
+        # shell splitting an unquoted variable into two words, which bash does
+        # and zsh does not, so it worked here and would have failed for anyone
+        # reading it in a different shell. Six lines cannot be misread.
+        run: |
+          set -euo pipefail
+          go test ./internal/query   -run=XXX -fuzz=FuzzParseFilter    -fuzztime=30s
+          go test ./internal/query   -run=XXX -fuzz=FuzzParseDateRange -fuzztime=30s
+          go test ./internal/openapi -run=XXX -fuzz=FuzzParse          -fuzztime=30s
+          go test ./internal/output  -run=XXX -fuzz=FuzzEmit           -fuzztime=30s
+          go test ./internal/output  -run=XXX -fuzz=FuzzSanitize       -fuzztime=30s
+          go test ./internal/auth    -run=XXX -fuzz=FuzzRedact         -fuzztime=30s
+
+  release-config:
+    # A release configuration that is only exercised on release day is a
+    # configuration that fails on release day.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: check
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --snapshot --clean --skip=sign,sbom
+      - name: The built binary must run and know what it is
+        run: |
+          set -euo pipefail
+          ./dist/statable_linux_amd64_v1/statable version
+          ./dist/statable_linux_amd64_v1/statable version --json | grep -q '"version"'
