@@ -140,8 +140,10 @@ homebrew_casks:
       bash: completions/statable.bash
       zsh: completions/statable.zsh
       fish: completions/statable.fish
+    # Every page, not just the root one: `man statable-top` has to find its
+    # own page, and the AUR package installs all of them.
     manpages:
-      - manpages/statable.1
+      - manpages/*.1
     hooks:
       post:
         install: |
