@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -64,14 +65,13 @@ func buildInfo() Build {
 	}
 
 	bi, ok := debug.ReadBuildInfo()
+	moduleVersion := ""
 	if ok {
-		if b.Version == "" {
-			// "(devel)" is what Go writes for a build from a working tree
-			// rather than from a tagged module version. It is not a version,
-			// so it is left for the revision below to describe.
-			if v := bi.Main.Version; v != "" && v != "(devel)" {
-				b.Version = v
-			}
+		// "(devel)" is what Go writes for a build from a working tree with no
+		// VCS information. It is not a version, so it is discarded here and
+		// the revision below describes the build instead.
+		if v := bi.Main.Version; v != "(devel)" {
+			moduleVersion = v
 		}
 		for _, s := range bi.Settings {
 			switch s.Key {
@@ -89,10 +89,12 @@ func buildInfo() Build {
 		}
 	}
 
+	if b.Version == "" && !isPseudoVersion(moduleVersion) {
+		b.Version = moduleVersion
+	}
 	if b.Version == "" {
-		// Still nothing: a build with neither a module version nor a tag. The
-		// commit is the only honest identifier left, and "unknown" beats a
-		// number that looks like a release and is not one.
+		// Nothing tagged. The commit is the only honest identifier left, and
+		// "devel" beats a number that looks like a release and is not one.
 		if b.Commit != "" {
 			b.Version = "devel"
 		} else {
@@ -101,6 +103,25 @@ func buildInfo() Build {
 	}
 	return b
 }
+
+// isPseudoVersion reports whether a module version is one Go synthesised from
+// this very commit rather than one someone tagged.
+//
+// Go records a pseudo-version like v0.0.0-20260909171644-36bf72eab1db for a
+// build from an untagged working tree. It is accurate but it is not a release,
+// and printing it as one invites a bug report against a version that was never
+// published. The commit it ends with is shown separately anyway.
+//
+// Matching on the commit alone was not enough: Go appends "+dirty" when the
+// tree is modified, and the suffix check then missed the very build most
+// likely to be mistaken for a release.
+func isPseudoVersion(version string) bool {
+	return pseudoVersion.MatchString(version)
+}
+
+// pseudoVersion is Go's own shape: a fourteen-digit timestamp and a
+// twelve-character revision, wherever they sit in the string.
+var pseudoVersion = regexp.MustCompile(`-\d{14}-[0-9a-f]{12}`)
 
 // String is the single line a person reads.
 func (b Build) String() string {
