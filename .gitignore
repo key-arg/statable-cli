@@ -1,0 +1,12 @@
+# Build output
+/dist/
+/statable
+/statable.exe
+
+# Go test and coverage artefacts
+*.out
+*.test
+
+# Fuzzing corpora are committed on purpose: a crash found once must not have
+# to be found again. Only the cache is ignored.
+/internal/*/testdata/fuzz/*/.cache/
