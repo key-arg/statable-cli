@@ -1,0 +1,181 @@
+# GoReleaser builds every published artefact. Run `goreleaser check` after any
+# edit; a release configuration that is only exercised on release day is a
+# configuration that fails on release day.
+version: 2
+
+project_name: statable
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+    # The release must not be the first place a failing test is noticed.
+    - go test ./...
+    # Completions and man pages are generated from the command tree, so they
+    # cannot describe a flag that no longer exists.
+    - go run ./cmd/gen-docs .
+
+builds:
+  - id: statable
+    main: ./cmd/statable
+    binary: statable
+    # No cgo. The keyring backends this uses are pure Go on every platform, so
+    # a static binary runs on Alpine and on a distroless image, which is the
+    # whole reason for choosing Go over Node here.
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      # -s -w drop the symbol table and DWARF. The version below is what a bug
+      # report quotes, so it is stamped rather than left to the VCS fallback.
+      - -s -w
+      - -X github.com/key-arg/statable-cli/internal/cli.Version={{ .Version }}
+      - -X github.com/key-arg/statable-cli/internal/cli.Commit={{ .FullCommit }}
+      - -X github.com/key-arg/statable-cli/internal/cli.Date={{ .CommitDate }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    # Reproducible: the timestamp comes from the commit, not from the clock on
+    # whichever runner happened to build it.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: statable
+    ids: [statable]
+    # An archive named for its platform is what every installer script and
+    # every human looking at a releases page expects to find.
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+      - src: completions/*
+        dst: completions
+      - src: manpages/*
+        dst: manpages
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# Signing is keyless: the signature is bound to the workflow identity in the
+# public transparency log, so there is no private key to leak or rotate and
+# anyone can verify who built the artefact and from which commit.
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
+
+sboms:
+  - artifacts: archive
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: key-arg
+    name: statable-cli
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Install
+
+    Arch (AUR): `yay -S statable-bin`
+    macOS and Linux (Homebrew): `brew install key-arg/tap/statable`
+    Anywhere with Go: `go install github.com/key-arg/statable-cli/cmd/statable@{{ .Tag }}`
+
+    Or download the archive for your platform below. There is deliberately no
+    `curl | sh` installer.
+
+    ### Verify what you downloaded
+
+    ```
+    cosign verify-blob checksums.txt \
+      --certificate checksums.txt.pem \
+      --signature checksums.txt.sig \
+      --certificate-identity-regexp 'https://github\.com/key-arg/statable-cli/\.github/workflows/.+' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com
+    sha256sum --check checksums.txt --ignore-missing
+    ```
+
+# Homebrew moved third-party binaries from formulae to casks, so `brews:` is
+# deprecated. A cask ships the built binary rather than compiling from source,
+# which is the point: nobody should need a Go toolchain to install a CLI.
+homebrew_casks:
+  - name: statable
+    ids: [statable]
+    repository:
+      owner: key-arg
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://statable.com
+    description: Read your Statable analytics from a terminal, a script, or CI
+    license: MIT
+    binaries:
+      - statable
+    completions:
+      bash: completions/statable.bash
+      zsh: completions/statable.zsh
+      fish: completions/statable.fish
+    manpages:
+      - manpages/statable.1
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/statable"]
+          end
+    # Gatekeeper quarantines anything downloaded without a notarised
+    # signature, and the first run then fails with a dialog rather than an
+    # error a script can read. The hook above clears the attribute Homebrew
+    # itself set, which is what every unsigned cask has to do.
+
+# The AUR package is published by the release itself, so its checksums can
+# never drift from the artefacts they describe -- which is the failure mode of
+# a hand-maintained PKGBUILD.
+aurs:
+  - name: statable-bin
+    ids: [statable]
+    homepage: https://statable.com
+    description: Read your Statable analytics from a terminal, a script, or CI
+    license: MIT
+    maintainers:
+      - "Yevhen Skrypets <yevhen@skrypets.com>"
+    private_key: "{{ .Env.AUR_KEY }}"
+    git_url: ssh://aur@aur.archlinux.org/statable-bin.git
+    provides: [statable]
+    conflicts: [statable]
+    package: |-
+      install -Dm755 "./statable" "${pkgdir}/usr/bin/statable"
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/statable-bin/LICENSE"
+
+      install -Dm644 "./completions/statable.bash" "${pkgdir}/usr/share/bash-completion/completions/statable"
+      install -Dm644 "./completions/statable.zsh" "${pkgdir}/usr/share/zsh/site-functions/_statable"
+      install -Dm644 "./completions/statable.fish" "${pkgdir}/usr/share/fish/vendor_completions.d/statable.fish"
+
+      for page in ./manpages/*.1; do
+        install -Dm644 "$page" "${pkgdir}/usr/share/man/man1/$(basename "$page")"
+      done

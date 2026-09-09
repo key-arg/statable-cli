@@ -10,3 +10,7 @@
 # Fuzzing corpora are committed on purpose: a crash found once must not have
 # to be found again. Only the cache is ignored.
 /internal/*/testdata/fuzz/*/.cache/
+
+# Generated at release time from the command tree, never edited by hand.
+/completions/
+/manpages/
