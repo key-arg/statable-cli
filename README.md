@@ -85,10 +85,18 @@ The rest of the surface:
 
 ```bash
 statable props                      # custom property keys, and the event each belongs to
+statable goals                      # the conversion goals defined on the site
+statable snippet                    # the install tag, ready to paste
 statable funnels                    # saved funnel definitions
 statable funnel 45 --range 7d       # run one, step by step
 statable subscription               # the plan state of the key's owner
 ```
+
+`goals` lists the definitions; `top goals` reports how they performed. Both
+`goals` and `snippet` are served from behind the API's write guard even though
+reading them needs only the read scope, so on a deployment with writes switched
+off they answer `write_disabled` — the command says that rather than letting a
+404 read as a missing site.
 
 A funnel's conversion rate is cumulative: it is measured against everyone who
 entered, not against the step before. Dropoff is the opposite and counts

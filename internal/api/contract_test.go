@@ -175,3 +175,77 @@ func TestErrorFieldNamesMatchTheSpec(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+// TestGoalReadsHostIDNotSiteID.
+//
+// GET /sites/{id}/goals returns the storage struct directly rather than a v1
+// shape, so it is the one endpoint in the whole API where the site is called
+// host_id. A Go field named SiteID tagged site_id compiles, reads naturally,
+// and decodes to zero on every goal — the same silent failure that once made
+// every comparison read as zero because the tag said diff instead of change.
+//
+// The payload below is copied from what apiListGoalsHandler marshals.
+func TestGoalReadsHostIDNotSiteID(t *testing.T) {
+	const body = `{"goals":[
+		{"id":42,"host_id":7,"name":"Signup","event_name":"Signup",
+		 "created_at":"2026-06-01T10:00:00Z","updated_at":"2026-06-01T10:00:00Z"}]}`
+
+	var out GoalsResponse
+	if err := json.Unmarshal([]byte(body), &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Goals) != 1 {
+		t.Fatalf("got %d goals", len(out.Goals))
+	}
+	g := out.Goals[0]
+	if g.SiteID != 7 {
+		t.Fatalf("SiteID = %d, want 7: the server calls this field host_id here", g.SiteID)
+	}
+	if g.ID != 42 || g.Name != "Signup" {
+		t.Fatalf("goal decoded wrong: %+v", g)
+	}
+}
+
+// TestGoalKindCoversEveryShapeTheServerSends: the server fills exactly one of
+// path, event_name and scroll_depth, and says nothing about which.
+func TestGoalKindCoversEveryShapeTheServerSends(t *testing.T) {
+	page, event := "/pricing", "Signup"
+	depth := 90
+	cases := []struct {
+		goal   Goal
+		kind   string
+		target string
+	}{
+		{Goal{Path: &page}, "page", "/pricing"},
+		{Goal{EventName: &event}, "event", "Signup"},
+		{Goal{ScrollDepth: &depth}, "scroll", "90%"},
+		{Goal{}, "", ""},
+		// A zero scroll depth is a real depth, not an absent one.
+		{Goal{ScrollDepth: new(int)}, "scroll", "0%"},
+	}
+	for _, tc := range cases {
+		if got := tc.goal.Kind(); got != tc.kind {
+			t.Errorf("Kind() = %q, want %q for %+v", got, tc.kind, tc.goal)
+		}
+		if got := tc.goal.Target(); got != tc.target {
+			t.Errorf("Target() = %q, want %q for %+v", got, tc.target, tc.goal)
+		}
+	}
+}
+
+// TestSnippetFieldNames pins the three fields apiSiteSnippetHandler marshals.
+func TestSnippetFieldNames(t *testing.T) {
+	const body = `{"site_id":7,"script_url":"https://cdn.example/js/7/s.js",
+		"snippet":"<script defer src=\"https://cdn.example/js/7/s.js\"></script>"}`
+
+	var sn Snippet
+	if err := json.Unmarshal([]byte(body), &sn); err != nil {
+		t.Fatal(err)
+	}
+	if sn.SiteID != 7 {
+		t.Errorf("SiteID = %d, want 7", sn.SiteID)
+	}
+	if sn.ScriptURL == "" || sn.Snippet == "" {
+		t.Errorf("snippet decoded empty: %+v", sn)
+	}
+}

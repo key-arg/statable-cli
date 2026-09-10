@@ -82,6 +82,9 @@ func registerCompletions(root *cobra.Command) {
 			c.RegisterFlagCompletionFunc("dimension",
 				fixedComplete(query.BreakdownDimensions()...))
 		}
+		if has("type") {
+			c.RegisterFlagCompletionFunc("type", fixedComplete(snippetTypes...))
+		}
 		if has("site") {
 			c.RegisterFlagCompletionFunc("site", completeSite)
 		}

@@ -219,25 +219,39 @@ func seeAlso(c *cobra.Command) string {
 func paragraphs(s string) string {
 	var b strings.Builder
 	pre := false
+	// A blank line emits .PP, and so did the start of a preformatted block.
+	// Prose that introduces an example ends with both, and mandoc warns about
+	// the second: "skipping paragraph macro: PP empty". Tracking the last one
+	// written keeps the break where it belongs and emits it once.
+	lastWasBreak := false
+	writeBreak := func() {
+		if !lastWasBreak {
+			b.WriteString(".PP\n")
+			lastWasBreak = true
+		}
+	}
 	for _, line := range strings.Split(strings.TrimSpace(s), "\n") {
 		indented := strings.HasPrefix(line, "  ")
 		switch {
 		case indented && !pre:
-			b.WriteString(".PP\n.RS 4\n.nf\n")
+			writeBreak()
+			b.WriteString(".RS 4\n.nf\n")
 			pre = true
 		case !indented && pre:
 			b.WriteString(".fi\n.RE\n")
 			pre = false
+			lastWasBreak = false
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
-			b.WriteString(".PP\n")
+			writeBreak()
 		case strings.TrimSpace(line) == "" && !pre:
-			b.WriteString(".PP\n")
+			writeBreak()
 			continue
 		}
 		b.WriteString(roff(strings.TrimSpace(line)))
 		b.WriteString("\n")
+		lastWasBreak = false
 	}
 	if pre {
 		b.WriteString(".fi\n.RE\n")
