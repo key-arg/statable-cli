@@ -202,7 +202,9 @@ func TestInsecureStorageIsExplicitAndWritesOnly600(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := di.Mode().Perm(); perm&0o077 != 0 {
+	// Same platform rule as the file above: a directory mode means nothing on
+	// Windows, where every directory reports 0777.
+	if perm := di.Mode().Perm(); FileModeIsEnforced() && perm&0o077 != 0 {
 		t.Fatalf("config dir mode = %o, must not be group or world accessible", perm)
 	}
 	if _, err := os.Stat(s.credentialsPath() + ".tmp"); err == nil {
