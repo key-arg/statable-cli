@@ -27,8 +27,12 @@ go install github.com/key-arg/statable-cli/cmd/statable@latest
 **mise**
 
 ```bash
-mise use -g ubi:key-arg/statable-cli
+mise use -g "ubi:key-arg/statable-cli[exe=statable]"
 ```
+
+The `exe` is not optional. ubi looks inside the archive for a file named after
+the project, and the binary is `statable` rather than `statable-cli`; without
+it the install fails with "could not find any files matching [statable-cli*]".
 
 **By hand.** Download the archive for your platform from the
 [releases page](https://github.com/key-arg/statable-cli/releases) and put the
