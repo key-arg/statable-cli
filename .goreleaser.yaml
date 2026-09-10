@@ -127,10 +127,14 @@ release:
 homebrew_casks:
   - name: statable
     ids: [statable]
+    # `index .Env` rather than `.Env.NAME`: the latter is a hard error when
+    # the variable does not exist at all, so a release from a repository that
+    # has no tap yet failed on a template instead of simply not publishing.
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
     repository:
       owner: key-arg
       name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
     homepage: https://statable.com
     description: Read your Statable analytics from a terminal, a script, or CI
     license: MIT
@@ -166,7 +170,10 @@ aurs:
     license: MIT
     maintainers:
       - "Yevhen Skrypets <yevhen@skrypets.com>"
-    private_key: "{{ .Env.AUR_KEY }}"
+    # Same guard: no key, no AUR package, and the rest of the release still
+    # happens. The archives and the checksums are the part people need.
+    disable: '{{ if index .Env "AUR_KEY" }}false{{ else }}true{{ end }}'
+    private_key: '{{ index .Env "AUR_KEY" }}'
     git_url: ssh://aur@aur.archlinux.org/statable-bin.git
     provides: [statable]
     conflicts: [statable]

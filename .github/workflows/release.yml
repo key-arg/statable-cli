@@ -33,5 +33,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # A separate token: the default one cannot write to another
           # repository, and the tap and the AUR package both live elsewhere.
+          # Both are always defined, empty when the secret is not set, so a
+          # release before those repositories exist publishes the archives and
+          # quietly skips the two package managers rather than failing.
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           AUR_KEY: ${{ secrets.AUR_KEY }}
