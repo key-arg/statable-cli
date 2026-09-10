@@ -21,6 +21,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          # Without this the release is built on exactly the version go.mod
+          # names, and go.mod names a floor rather than a preference. The
+          # first release went out on a Go with seven known standard-library
+          # vulnerabilities in net/http, crypto/tls and crypto/x509 -- the
+          # three packages every request this tool makes goes through.
+          check-latest: true
       - uses: sigstore/cosign-installer@v3
       - uses: anchore/sbom-action/download-syft@v0
 
