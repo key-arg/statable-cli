@@ -1,6 +1,6 @@
 module github.com/key-arg/statable-cli
 
-go 1.26.3
+go 1.26.8
 
 require (
 	github.com/spf13/cobra v1.10.2

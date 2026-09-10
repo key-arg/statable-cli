@@ -47,6 +47,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          check-latest: true
       - name: Fuzz the parsers
         # Written out rather than looped. The loop this replaced relied on the
         # shell splitting an unquoted variable into two words, which bash does
@@ -61,6 +62,24 @@ jobs:
           go test ./internal/output  -run=XXX -fuzz=FuzzSanitize       -fuzztime=30s
           go test ./internal/auth    -run=XXX -fuzz=FuzzRedact         -fuzztime=30s
 
+  vulnerabilities:
+    # The first release shipped on a Go with seven known standard-library
+    # vulnerabilities that this code reaches: net/url, net/http, net/textproto,
+    # encoding/asn1, crypto/x509 and crypto/tls twice. Nothing in the pipeline
+    # was looking, so nothing said anything. This is the thing that looks.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+      - name: Check dependencies and the standard library
+        run: |
+          set -euo pipefail
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
   release-config:
     # A release configuration that is only exercised on release day is a
     # configuration that fails on release day.
@@ -72,6 +91,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          check-latest: true
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
