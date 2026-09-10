@@ -247,6 +247,12 @@ the keyring is unavailable, the command refuses and names `--insecure-storage`
 rather than quietly writing the key in the clear. `statable auth status` always
 reports which source the active key came from.
 
+On Windows the keyring is the Credential Manager, which does protect the key.
+The `--insecure-storage` file does not: Windows maps a file mode onto the
+read-only attribute and nothing else, so a file written with `0600` is readable
+by every account on the machine. The command says so when it writes one, rather
+than leaving you to believe in permissions the operating system ignores.
+
 Resolution order: `--key`, then `STATABLE_API_KEY`, then the keyring, then a
 `0600` file. The credential is resolved on first use, so `statable version`
 never waits on a locked keyring, and every keyring call is bounded and

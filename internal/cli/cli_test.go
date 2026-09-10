@@ -16,6 +16,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/key-arg/statable-cli/internal/auth"
 )
 
 // run executes the CLI in-process against real pipes, which is what a script
@@ -576,7 +578,8 @@ func TestInsecureStorageFlagStillReachesTheStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the key was not written to %s, so the flag never reached the store: %v", path, err)
 	}
-	if perm := fi.Mode().Perm(); perm != 0o600 {
+	// See auth.FileModeIsEnforced: Windows does not honour the bits.
+	if perm := fi.Mode().Perm(); auth.FileModeIsEnforced() && perm != 0o600 {
 		t.Fatalf("credentials mode = %o, want 600", perm)
 	}
 }

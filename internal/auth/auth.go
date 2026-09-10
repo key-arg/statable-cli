@@ -255,6 +255,15 @@ func (s *Store) Save(ctx context.Context, key string) (Source, error) {
 	return SourceFile, nil
 }
 
+// InsecureWarning is the sentence to show after a key was written in the
+// clear, or empty when there is nothing platform-specific to say.
+//
+// The rule this package follows is that credentials never degrade silently.
+// On Windows the file mode is not enforced at all, so writing 0600 and saying
+// nothing would be exactly that degradation: the user believes the key is
+// protected by permissions that the operating system ignores.
+func (s *Store) InsecureWarning() string { return PlaintextWarning(s.credentialsPath()) }
+
 func (s *Store) writeFile(key string) error {
 	if err := os.MkdirAll(s.ConfigDir, 0o700); err != nil {
 		return clierr.Wrap(err, "CONFIG_DIR", "could not create the config directory")
