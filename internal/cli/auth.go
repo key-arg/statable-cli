@@ -83,6 +83,14 @@ func newAuthLoginCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// A key written where the operating system will not restrict it
+			// is a warning, not a note: --quiet must not be able to hide the
+			// fact that a credential is readable by everyone on the machine.
+			if src == auth.SourceFile {
+				if w := rt.Store.InsecureWarning(); w != "" {
+					rt.Out.Warn("%s", w)
+				}
+			}
 
 			return rt.Out.EmitRecord(output.Record{
 				{Name: "status", Value: "ok", OmitHuman: true},

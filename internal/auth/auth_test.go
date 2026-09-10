@@ -187,8 +187,16 @@ func TestInsecureStorageIsExplicitAndWritesOnly600(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := fi.Mode().Perm(); perm != 0o600 {
+	// Windows maps a file mode onto the read-only attribute and nothing
+	// else, so a file created with 0600 reports 0666 there. Asserting 0600
+	// unconditionally does not make the file private on Windows; it only
+	// makes the test fail. What must hold on every platform is that the mode
+	// requested is 0600 and that the user is told when it is not enforced.
+	if perm := fi.Mode().Perm(); FileModeIsEnforced() && perm != 0o600 {
 		t.Fatalf("credentials file mode = %o, want 600", perm)
+	}
+	if !FileModeIsEnforced() && s.InsecureWarning() == "" {
+		t.Fatal("this platform does not enforce the file mode and says nothing about it")
 	}
 	di, err := os.Stat(s.ConfigDir)
 	if err != nil {

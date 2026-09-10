@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/key-arg/statable-cli/internal/auth"
 )
 
 // TestWriteNewFileRefusesASymlink: the scratch path this program writes to is
@@ -60,7 +62,8 @@ func TestWriteNewFileIsPrivate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := fi.Mode().Perm(); perm != 0o600 {
+	// See auth.FileModeIsEnforced: Windows does not honour the bits.
+	if perm := fi.Mode().Perm(); auth.FileModeIsEnforced() && perm != 0o600 {
 		t.Fatalf("mode = %o, want 600", perm)
 	}
 }
