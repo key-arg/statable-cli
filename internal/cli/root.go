@@ -329,6 +329,8 @@ func NewRoot(stdout, stderr *os.File) (*cobra.Command, *Runtime) {
 		newSeriesCmd(),
 		newTopCmd(),
 		newPropsCmd(),
+		newGoalsCmd(),
+		newSnippetCmd(),
 		newFunnelsCmd(),
 		newFunnelCmd(),
 		newSubscriptionCmd(),

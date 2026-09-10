@@ -1,6 +1,9 @@
 package api
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 // Site is one entry from GET /sites.
 type Site struct {
@@ -252,4 +255,65 @@ type Subscription struct {
 	IsTrial   bool    `json:"is_trial"`
 	EndsAt    *string `json:"ends_at,omitempty"`
 	OnlyHobby bool    `json:"only_hobby"`
+}
+
+// Goal is one saved conversion goal from GET /sites/{id}/goals.
+//
+// SiteID reads the server's `host_id`, not `site_id`. The endpoint returns the
+// storage struct directly rather than a v1 shape, so this is the one place in
+// the API where the site is not called site_id. Naming the Go field SiteID and
+// tagging it host_id keeps the CLI consistent without misreading the wire.
+//
+// Which of Path, EventName and ScrollDepth is set depends on what kind of goal
+// it is, so all three are pointers: an absent path and an empty one are
+// different things.
+type Goal struct {
+	ID          int64   `json:"id"`
+	SiteID      int64   `json:"host_id"`
+	Name        string  `json:"name"`
+	Path        *string `json:"path,omitempty"`
+	Operator    string  `json:"operator,omitempty"`
+	EventName   *string `json:"event_name,omitempty"`
+	ScrollDepth *int    `json:"scroll_depth,omitempty"`
+	CreatedAt   string  `json:"created_at"`
+	UpdatedAt   string  `json:"updated_at"`
+}
+
+// Kind names what the goal matches on, which the server leaves implicit in
+// which field it filled.
+func (g Goal) Kind() string {
+	switch {
+	case g.EventName != nil:
+		return "event"
+	case g.ScrollDepth != nil:
+		return "scroll"
+	case g.Path != nil:
+		return "page"
+	}
+	return ""
+}
+
+// Target is the value the goal matches, whatever kind it is.
+func (g Goal) Target() string {
+	switch {
+	case g.EventName != nil:
+		return *g.EventName
+	case g.ScrollDepth != nil:
+		return strconv.Itoa(*g.ScrollDepth) + "%"
+	case g.Path != nil:
+		return *g.Path
+	}
+	return ""
+}
+
+// GoalsResponse is the GET /sites/{id}/goals envelope.
+type GoalsResponse struct {
+	Goals []Goal `json:"goals"`
+}
+
+// Snippet is GET /sites/{id}/snippet: the tag to put on a page.
+type Snippet struct {
+	SiteID    int64  `json:"site_id"`
+	ScriptURL string `json:"script_url"`
+	Snippet   string `json:"snippet"`
 }
