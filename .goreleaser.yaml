@@ -128,14 +128,23 @@ release:
 homebrew_casks:
   - name: statable
     ids: [statable]
-    # `index .Env` rather than `.Env.NAME`: the latter is a hard error when
-    # the variable does not exist at all, so a release from a repository that
-    # has no tap yet failed on a template instead of simply not publishing.
+    # Two different rules apply here, and they pull opposite ways.
+    #
+    # A secret field is validated before it is rendered, and the validator
+    # accepts nothing but a bare {{ .Env.NAME }} -- an `index .Env` expression
+    # fails with "expected {{ .Env.VAR_NAME }} only". So `token` below has to
+    # use that exact form.
+    #
+    # But {{ .Env.NAME }} is a hard error when the variable does not exist at
+    # all. That is handled in the workflow instead: it always sets both
+    # variables, empty when the secret is unset, so the name always exists.
+    # skip_upload then decides whether to publish, and it is a plain template
+    # with no such restriction.
     skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
     repository:
       owner: key-arg
       name: homebrew-tap
-      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: https://statable.com
     description: Read your Statable analytics from a terminal, a script, or CI
     license: MIT
@@ -171,10 +180,10 @@ aurs:
     license: MIT
     maintainers:
       - "Yevhen Skrypets <yevhen@skrypets.com>"
-    # Same guard: no key, no AUR package, and the rest of the release still
-    # happens. The archives and the checksums are the part people need.
+    # Same split as the cask above: disable is a plain template, private_key is
+    # a secret field and must be the bare form.
     disable: '{{ if index .Env "AUR_KEY" }}false{{ else }}true{{ end }}'
-    private_key: '{{ index .Env "AUR_KEY" }}'
+    private_key: "{{ .Env.AUR_KEY }}"
     git_url: ssh://aur@aur.archlinux.org/statable-bin.git
     provides: [statable]
     conflicts: [statable]
