@@ -103,7 +103,6 @@ release:
   footer: |
     ## Install
 
-    Arch (AUR): `yay -S statable-bin`
     macOS and Linux (Homebrew): `brew install key-arg/tap/statable`
     Anywhere with Go: `go install github.com/key-arg/statable-cli/cmd/statable@{{ .Tag }}`
     mise: `mise use -g "ubi:key-arg/statable-cli[exe=statable]"`
