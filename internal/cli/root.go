@@ -334,6 +334,8 @@ func NewRoot(stdout, stderr *os.File) (*cobra.Command, *Runtime) {
 		newFunnelsCmd(),
 		newFunnelCmd(),
 		newSubscriptionCmd(),
+		newKeysCmd(),
+		newSettingsCmd(),
 		newQueryCmd(),
 		newCheckCmd(),
 		newAPICmd(),

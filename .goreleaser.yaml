@@ -121,6 +121,12 @@ release:
     sha256sum --check checksums.txt --ignore-missing
     ```
 
+    ### Statable
+
+    [Docs](https://statable.com/docs/) · [Stats API](https://statable.com/docs/developers/stats-api/) · [Blog](https://statable.com/blog/) · [Status](https://status.statable.com)
+
+    Cookieless web analytics hosted in the EU: [statable.com](https://statable.com)
+
 # Homebrew moved third-party binaries from formulae to casks, so `brews:` is
 # deprecated. A cask ships the built binary rather than compiling from source,
 # which is the point: nobody should need a Go toolchain to install a CLI.

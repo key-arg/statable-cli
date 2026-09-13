@@ -80,6 +80,17 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
 
+  api-coverage:
+    # The unit tests check the coverage table against the code. This checks it
+    # against the API as the server is serving it right now: an endpoint added
+    # upstream is invisible to everything else in this repository, which is how
+    # props, goals, snippet and registration each went missing in turn.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare the coverage table with the live specification
+        run: ./tools/check-coverage.sh
+
   release-config:
     # A release configuration that is only exercised on release day is a
     # configuration that fails on release day.

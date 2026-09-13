@@ -35,7 +35,7 @@ func newAuthCmd(insecure *bool) *cobra.Command {
 	// help of sixteen commands that never read it.
 	cmd.PersistentFlags().BoolVar(insecure, "insecure-storage", false,
 		"store the key in a plaintext file instead of the system keyring")
-	cmd.AddCommand(newAuthLoginCmd(), newAuthStatusCmd(), newAuthLogoutCmd())
+	cmd.AddCommand(newAuthLoginCmd(), newAuthRegisterCmd(insecure), newAuthStatusCmd(), newAuthLogoutCmd())
 	return cmd
 }
 

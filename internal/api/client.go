@@ -342,6 +342,23 @@ func (c *Client) Post(ctx context.Context, path string, body any) (*Response, er
 	return c.Do(ctx, http.MethodPost, path, nil, body)
 }
 
+// Put replaces a resource whole. The API means it literally: a field left out
+// of the body is not left alone, it is cleared. Callers say so in their help.
+func (c *Client) Put(ctx context.Context, path string, body any) (*Response, error) {
+	return c.Do(ctx, http.MethodPut, path, nil, body)
+}
+
+// Patch changes only the fields it carries.
+func (c *Client) Patch(ctx context.Context, path string, body any) (*Response, error) {
+	return c.Do(ctx, http.MethodPatch, path, nil, body)
+}
+
+// Delete removes a resource. It takes no body: every delete in this API is
+// addressed entirely by its path.
+func (c *Client) Delete(ctx context.Context, path string) (*Response, error) {
+	return c.Do(ctx, http.MethodDelete, path, nil, nil)
+}
+
 // DecodeInto unmarshals a successful response body.
 func DecodeInto(r *Response, v any) error {
 	if err := json.Unmarshal(r.Body, v); err != nil {

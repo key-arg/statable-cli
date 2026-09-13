@@ -73,6 +73,7 @@ func newFunnelsCmd() *cobra.Command {
 			return rt.Out.Emit(t)
 		},
 	}
+	cmd.AddCommand(newFunnelsCreateCmd(), newFunnelsEditCmd(), newFunnelsDeleteCmd())
 	return cmd
 }
 

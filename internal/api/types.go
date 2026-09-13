@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 )
 
 // Site is one entry from GET /sites.
@@ -316,4 +317,167 @@ type Snippet struct {
 	SiteID    int64  `json:"site_id"`
 	ScriptURL string `json:"script_url"`
 	Snippet   string `json:"snippet"`
+}
+
+// APIKey is one entry of GET /keys. The secret itself is never returned: only
+// Prefix, which is enough to tell two keys apart in a listing.
+//
+// WebsiteID is nil for a key that reaches every site the account owns, and
+// ExpiresAt is nil for a key that never expires. Both are pointers because
+// "all sites" and "site zero" are different answers, as are "never" and "the
+// zero time".
+type APIKey struct {
+	ID         int64   `json:"id"`
+	Name       string  `json:"name"`
+	Prefix     string  `json:"prefix"`
+	WebsiteID  *int64  `json:"website_id"`
+	Scopes     string  `json:"scopes"`
+	CreatedAt  string  `json:"created_at"`
+	CreatedIP  *string `json:"created_ip"`
+	LastUsedAt *string `json:"last_used_at"`
+	LastUsedIP *string `json:"last_used_ip"`
+	ExpiresAt  *string `json:"expires_at"`
+}
+
+// Scope reports whether the key carries one named permission.
+func (k APIKey) Scope(want string) bool {
+	for _, s := range strings.Split(k.Scopes, ",") {
+		if strings.TrimSpace(s) == want {
+			return true
+		}
+	}
+	return false
+}
+
+// KeysResponse is the GET /keys envelope.
+type KeysResponse struct {
+	Keys []APIKey `json:"keys"`
+}
+
+// KeyEvent is one line of a key's audit trail.
+type KeyEvent struct {
+	ID        int64   `json:"id"`
+	Event     string  `json:"event"`
+	IP        *string `json:"ip"`
+	CreatedAt string  `json:"created_at"`
+}
+
+// KeyEventsResponse is the GET /keys/{id}/events envelope.
+type KeyEventsResponse struct {
+	Events []KeyEvent `json:"events"`
+}
+
+// TrackingSettings is GET /sites/{id}/settings/tracking: what the installed
+// script collects.
+type TrackingSettings struct {
+	SiteID   int64    `json:"site_id"`
+	Version  string   `json:"version"`
+	Bundle   string   `json:"bundle"`
+	Enabled  bool     `json:"enabled"`
+	Features []string `json:"features"`
+}
+
+// HostnameSettings and CountrySettings share a shape: two lists, either of
+// which may be empty. An empty allow list means "everything not blocked".
+type HostnameSettings struct {
+	Allowed []string `json:"allowed"`
+	Blocked []string `json:"blocked"`
+}
+
+// CountrySettings is the same shape over ISO country codes.
+type CountrySettings struct {
+	Allowed []string `json:"allowed"`
+	Blocked []string `json:"blocked"`
+}
+
+// BlockedIPSettings is GET /sites/{id}/settings/blocked-ips.
+type BlockedIPSettings struct {
+	BlockedIPs []string `json:"blocked_ips"`
+}
+
+// PublicDashboardSettings is whether the site's stats are world-readable.
+type PublicDashboardSettings struct {
+	SiteID  int64 `json:"site_id"`
+	Enabled bool  `json:"enabled"`
+}
+
+// CreateSiteRequest is POST /sites.
+type CreateSiteRequest struct {
+	URL      string `json:"url"`
+	Timezone string `json:"timezone,omitempty"`
+	Hobby    bool   `json:"hobby,omitempty"`
+}
+
+// CreatedSite is what POST /sites answers with: the site plus the tag to
+// install, so a caller never has to ask twice.
+type CreatedSite struct {
+	SiteID    int64  `json:"site_id"`
+	Name      string `json:"name"`
+	Timezone  string `json:"timezone"`
+	Hash      string `json:"hash"`
+	ScriptURL string `json:"script_url"`
+	Snippet   string `json:"snippet"`
+}
+
+// PatchSiteRequest is PATCH /sites/{id}. Every field is a pointer because a
+// patch says what changes, and "set the week to Sunday" is zero.
+type PatchSiteRequest struct {
+	URL       *string `json:"url,omitempty"`
+	Timezone  *string `json:"timezone,omitempty"`
+	WeekStart *int    `json:"week_start,omitempty"`
+}
+
+// CreateKeyRequest is POST /keys.
+type CreateKeyRequest struct {
+	Scopes        []string `json:"scopes,omitempty"`
+	Name          string   `json:"name"`
+	WebsiteID     *int64   `json:"website_id,omitempty"`
+	ExpiresInDays *int     `json:"expires_in_days,omitempty"`
+}
+
+// CreatedKey carries the one and only time the secret is ever returned.
+//
+// The secret field is `token`, not `key`. The server embeds the whole APIKey
+// struct and adds `token` beside it, and a field tagged `key` decodes to an
+// empty string -- which for this response means the secret is gone, because
+// there is no second chance to read it. Same shape of mistake as reading
+// `diff` where the server writes `change`, with a worse consequence.
+type CreatedKey struct {
+	APIKey
+	Token string `json:"token"`
+}
+
+// Scopes the API recognises, in the order a person would grant them.
+var KeyScopes = []string{"read", "sites:write", "keys:manage", "billing:write"}
+
+// CreateGoalRequest is POST /sites/{id}/goals, and the body PUT takes too.
+type CreateGoalRequest struct {
+	Name        string  `json:"name"`
+	Path        *string `json:"path,omitempty"`
+	Operator    string  `json:"operator,omitempty"`
+	EventName   *string `json:"event_name,omitempty"`
+	ScrollDepth *int    `json:"scroll_depth,omitempty"`
+}
+
+// CreateFunnelRequest is POST /sites/{id}/funnels and the PUT body.
+type CreateFunnelRequest struct {
+	Name        string       `json:"name"`
+	Steps       []FunnelStep `json:"steps"`
+	Scope       string       `json:"scope,omitempty"`
+	StrictOrder bool         `json:"strict_order,omitempty"`
+}
+
+// SendOTPRequest and VerifyOTPRequest register an account without a browser.
+type SendOTPRequest struct {
+	Email string `json:"email"`
+}
+
+// VerifyOTPRequest exchanges the emailed code for a first API key.
+type VerifyOTPRequest struct {
+	Email         string   `json:"email"`
+	Code          string   `json:"code"`
+	AcceptTerms   bool     `json:"accept_terms"`
+	KeyName       string   `json:"key_name,omitempty"`
+	Scopes        []string `json:"scopes,omitempty"`
+	ExpiresInDays *int     `json:"expires_in_days,omitempty"`
 }
