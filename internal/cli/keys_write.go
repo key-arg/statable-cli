@@ -27,6 +27,9 @@ func newKeysCreateCmd() *cobra.Command {
 			"payload, so `--json | jq -r .token` is the way to capture it.\n\n" +
 			"Scopes default to read alone. Ask only for what the key will do:\n" +
 			"  " + strings.Join(api.KeyScopes, ", ") + "\n\n" +
+			"A key expires after 90 days unless --expires-in says otherwise. There\n" +
+			"is no way to ask for one that never expires, so the expiry is printed\n" +
+			"with the key rather than left to be discovered when it stops working.\n\n" +
 			"Examples:\n" +
 			"  statable keys create ci\n" +
 			"  statable keys create deploy --scope read --scope sites:write\n" +
@@ -87,19 +90,30 @@ func newKeysCreateCmd() *cobra.Command {
 					"the server created the key but returned no secret, and it cannot be shown later")
 			}
 			rt.Out.Warn("this is the only time the secret is shown; store it now")
+			// The expiry the server actually assigned, not the one that was
+			// asked for: they differ whenever --expires-in is omitted.
+			if out.ExpiresAt != nil {
+				rt.Out.Note("this key expires on %s", shortInstant(*out.ExpiresAt))
+			}
+			var expires any
+			if out.ExpiresAt != nil {
+				expires = *out.ExpiresAt
+			}
 			return rt.Out.EmitRecord(output.Record{
 				{Name: "token", Value: out.Token, Human: out.Token},
 				{Name: "id", Value: out.ID, OmitHuman: true},
 				{Name: "name", Value: out.Name, OmitHuman: true},
 				{Name: "prefix", Value: out.Prefix, OmitHuman: true},
 				{Name: "scopes", Value: out.Scopes, OmitHuman: true},
+				{Name: "expires_at", Value: expires, OmitHuman: true},
 			})
 		},
 	}
 	cmd.Flags().StringArrayVar(&scopes, "scope", nil,
 		"permission to grant; repeat for more. Defaults to read")
 	cmd.Flags().StringVar(&site, "for-site", "", "scope the key to one site")
-	cmd.Flags().IntVar(&expiresIn, "expires-in", 0, "days until the key expires; omitted means never")
+	cmd.Flags().IntVar(&expiresIn, "expires-in", 0,
+		"days until the key expires; omitted means the server's 90")
 	_ = name
 	return cmd
 }
@@ -122,6 +136,8 @@ func newKeysRotateCmd() *cobra.Command {
 			"The old secret stops working immediately. Anything still using it --\n" +
 			"a CI job, a cron entry, another machine -- breaks until it is updated,\n" +
 			"which is why this asks first.\n\n" +
+			"A key cannot rotate itself, either; the server answers 409\n" +
+			"self_modification. Rotate it with a different key.\n\n" +
 			"Examples:\n" +
 			"  statable keys rotate 42\n" +
 			"  statable keys rotate 42 --yes --json | jq -r .token",
@@ -172,9 +188,9 @@ func newKeysRevokeCmd() *cobra.Command {
 		Aliases: []string{"delete"},
 		Short:   "Revoke an API key",
 		Long: "Revoke a key. It stops working immediately and cannot be restored.\n\n" +
-			"Revoking the key you are currently using is allowed, and the next\n" +
-			"command will fail to authenticate. Run `statable keys` first if you are\n" +
-			"not sure which one you are holding.\n\n" +
+			"A key cannot revoke itself: the server answers 409 self_modification.\n" +
+			"To retire the key you are holding, use another one, or mint a\n" +
+			"replacement first and authenticate with that.\n\n" +
 			"Examples:\n" +
 			"  statable keys revoke 42\n" +
 			"  statable keys revoke 42 --yes",

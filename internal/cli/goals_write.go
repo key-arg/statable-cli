@@ -18,6 +18,10 @@ var goalOperators = map[string]string{
 	"equals": "e", "e": "e",
 	"begins": "b", "b": "b",
 	"contains": "c", "c": "c",
+	// The server has a fourth: storage_goals.go treats "r" as a raw regular
+	// expression, escaping nothing. Leaving it out made a goal the API accepts
+	// impossible to create here.
+	"regexp": "r", "regex": "r", "r": "r",
 }
 
 // goalFlags are shared by create and edit: the same body, the same rules.
@@ -33,7 +37,8 @@ func (g *goalFlags) register(cmd *cobra.Command) {
 	f := cmd.Flags()
 	f.StringVar(&g.name, "name", "", "what the goal is called")
 	f.StringVar(&g.path, "path", "", "a URL path to match")
-	f.StringVar(&g.operator, "operator", "equals", "how to match the path: equals, begins or contains")
+	f.StringVar(&g.operator, "operator", "equals",
+		"how to match the path: equals, begins, contains or regexp")
 	f.StringVar(&g.event, "event", "", "a custom event name to match instead of a path")
 	f.IntVar(&g.scroll, "scroll", 0, "percent scrolled, 1 to 100")
 }
@@ -76,7 +81,7 @@ func (g *goalFlags) body(cmd *cobra.Command) (api.CreateGoalRequest, error) {
 		op, ok := goalOperators[strings.ToLower(strings.TrimSpace(g.operator))]
 		if !ok {
 			return b, clierr.Failf(clierr.CodeInvalidFormat,
-				"unknown operator %q; use equals, begins or contains", g.operator).
+				"unknown operator %q; use equals, begins, contains or regexp", g.operator).
 				WithExit(clierr.ExitUsage)
 		}
 		p := g.path
@@ -223,24 +228,33 @@ func newGoalsDeleteCmd() *cobra.Command {
 					"%q is not a goal id; run `statable goals` to see them", args[0]).
 					WithExit(clierr.ExitUsage)
 			}
-			if err := rt.confirm(yes, fmt.Sprintf("goal %d", id)); err != nil {
-				return err
-			}
 			client, err := rt.Client(cmd.Context())
 			if err != nil {
 				return err
 			}
-			err = rt.withSite(cmd.Context(), func(site api.Site) error {
-				resp, rerr := client.Delete(cmd.Context(),
-					fmt.Sprintf("/sites/%d/goals/%d", site.SiteID, id))
-				rt.traceResponse(resp)
-				if rerr != nil {
-					return explainWriteDisabled(rerr, "deleting a goal")
-				}
-				return nil
-			})
+			// The site is resolved BEFORE the question, and the question names
+			// it. Asking "delete goal 3?" and then working out which site that
+			// means is how the wrong one gets deleted.
+			//
+			// withSite is deliberately not used here. Its repair path retries
+			// the call against a freshly resolved site, which is right for a
+			// read and wrong for a delete: the retry would remove goal %d on a
+			// different site from the one the user agreed to.
+			if _, rerr := rt.refreshSites(cmd.Context()); rerr != nil {
+				return rerr
+			}
+			site, err := rt.resolveSite(cmd.Context())
 			if err != nil {
 				return err
+			}
+			if err := rt.confirm(yes, fmt.Sprintf("goal %d on %s", id, site.Name)); err != nil {
+				return err
+			}
+			resp, err := client.Delete(cmd.Context(),
+				fmt.Sprintf("/sites/%d/goals/%d", site.SiteID, id))
+			rt.traceResponse(resp)
+			if err != nil {
+				return explainWriteDisabled(err, "deleting a goal")
 			}
 			return rt.Out.EmitRecord(output.Record{
 				{Name: "status", Value: "deleted", Human: fmt.Sprintf("goal %d is gone", id)},

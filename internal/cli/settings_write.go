@@ -118,7 +118,7 @@ func newSetCountriesCmd() *cobra.Command {
 				}
 			}
 			return rt.putSetting(cmd, "countries",
-				api.CountrySettings{Allowed: upperAll(allow), Blocked: upperAll(block)},
+				api.CountryListRequest{Allowed: upperAll(allow), Blocked: upperAll(block)},
 				fmt.Sprintf("countries replaced: %d allowed, %d blocked", len(allow), len(block)))
 		},
 	}
@@ -153,8 +153,14 @@ func newSetBlockedIPsCmd() *cobra.Command {
 			if err := requireListIntent(cmd, "ip"); err != nil {
 				return err
 			}
-			return rt.putSetting(cmd, "blocked-ips",
-				api.BlockedIPSettings{BlockedIPs: ips},
+			// A bare array, not an object: apiPutBlockedIPsHandler does
+			// json.Unmarshal into []string, and an object is a 400 every
+			// time. The GET answers with an object, which is what made the
+			// symmetry look safe.
+			if ips == nil {
+				ips = []string{}
+			}
+			return rt.putSetting(cmd, "blocked-ips", ips,
 				fmt.Sprintf("blocklist replaced: %d addresses", len(ips)))
 		},
 	}
@@ -214,6 +220,11 @@ func newSetTrackingCmd() *cobra.Command {
 			rt := From(cmd.Context())
 			if err := requireListIntent(cmd, "feature"); err != nil {
 				return err
+			}
+			// features must be present and an array. A nil slice marshals to
+			// null, which the server rejects as the field being missing.
+			if features == nil {
+				features = []string{}
 			}
 			return rt.putSetting(cmd, "tracking",
 				map[string]any{"features": features},

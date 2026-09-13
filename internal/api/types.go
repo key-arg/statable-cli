@@ -355,11 +355,16 @@ type KeysResponse struct {
 }
 
 // KeyEvent is one line of a key's audit trail.
+//
+// There is no id: the server sends event, ip, user_agent, created_at and the
+// key that performed the action. A column reading an absent field printed 0 on
+// every row, which looks like data and is not.
 type KeyEvent struct {
-	ID        int64   `json:"id"`
-	Event     string  `json:"event"`
-	IP        *string `json:"ip"`
-	CreatedAt string  `json:"created_at"`
+	Event      string  `json:"event"`
+	IP         *string `json:"ip"`
+	UserAgent  *string `json:"user_agent"`
+	CreatedAt  string  `json:"created_at"`
+	ActorKeyID *int64  `json:"actor_key_id"`
 }
 
 // KeyEventsResponse is the GET /keys/{id}/events envelope.
@@ -367,14 +372,33 @@ type KeyEventsResponse struct {
 	Events []KeyEvent `json:"events"`
 }
 
-// TrackingSettings is GET /sites/{id}/settings/tracking: what the installed
-// script collects.
-type TrackingSettings struct {
-	SiteID   int64    `json:"site_id"`
-	Version  string   `json:"version"`
-	Bundle   string   `json:"bundle"`
+// TrackingFeature is one entry of the tracking catalogue: what the script can
+// collect, and whether this site has it on.
+type TrackingFeature struct {
+	ID       string   `json:"id"`
+	Label    string   `json:"label"`
 	Enabled  bool     `json:"enabled"`
-	Features []string `json:"features"`
+	Locked   bool     `json:"locked"`
+	Default  bool     `json:"default"`
+	Requires []string `json:"requires,omitempty"`
+	SizeBr   int      `json:"size_br,omitempty"`
+}
+
+// TrackingSettings is GET /sites/{id}/settings/tracking.
+//
+// Three of these fields were wrong in the first version, and every one of them
+// was wrong in the same direction: the shape I expected was simpler than the
+// shape the server sends. version is a number, enabled is the list of feature
+// ids that are on, and features are objects rather than names. json.Unmarshal
+// stops at the first mismatch, so the command could never decode a real
+// response -- and because tracking is first in the group list, plain
+// `statable settings` died before printing the four groups that did work.
+type TrackingSettings struct {
+	SiteID   int64             `json:"site_id"`
+	Version  int               `json:"version"`
+	Bundle   string            `json:"bundle"`
+	Enabled  []string          `json:"enabled"`
+	Features []TrackingFeature `json:"features"`
 }
 
 // HostnameSettings and CountrySettings share a shape: two lists, either of
@@ -384,8 +408,35 @@ type HostnameSettings struct {
 	Blocked []string `json:"blocked"`
 }
 
-// CountrySettings is the same shape over ISO country codes.
+// CountryEntry is one country on a list, with the time it was added.
+type CountryEntry struct {
+	Code      string `json:"code"`
+	CreatedAt string `json:"created_at"`
+}
+
+// CountrySettings is GET /sites/{id}/settings/countries.
+//
+// Not the same shape as hostnames, despite reading like it. The write takes
+// bare ISO codes and the read returns an entry per country, and the asymmetry
+// is deliberate on the server's side. Decoding the read as []string failed on
+// any site that actually had a country listed -- which is the only case worth
+// reading.
 type CountrySettings struct {
+	Allowed []CountryEntry `json:"allowed"`
+	Blocked []CountryEntry `json:"blocked"`
+}
+
+// Codes flattens a list of entries to the codes a filter accepts.
+func Codes(in []CountryEntry) []string {
+	out := make([]string, 0, len(in))
+	for _, e := range in {
+		out = append(out, e.Code)
+	}
+	return out
+}
+
+// CountryListRequest is the PUT body: bare codes, not entries.
+type CountryListRequest struct {
 	Allowed []string `json:"allowed"`
 	Blocked []string `json:"blocked"`
 }
@@ -470,6 +521,17 @@ type CreateFunnelRequest struct {
 // SendOTPRequest and VerifyOTPRequest register an account without a browser.
 type SendOTPRequest struct {
 	Email string `json:"email"`
+}
+
+// VerifyOTPResponse is what POST /auth/verify-otp answers with.
+//
+// The key is nested under "key", not flattened beside the token. Decoding it
+// flat left id, prefix and scopes at their zero values while the token itself
+// happened to line up, so the command looked like it worked.
+type VerifyOTPResponse struct {
+	Token   string `json:"token"`
+	Key     APIKey `json:"key"`
+	Created bool   `json:"created"`
 }
 
 // VerifyOTPRequest exchanges the emailed code for a first API key.

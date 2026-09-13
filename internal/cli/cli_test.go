@@ -105,6 +105,10 @@ func emptyConfig(t *testing.T) map[string]string {
 	return map[string]string{
 		"STATABLE_CONFIG_DIR": t.TempDir(),
 		"STATABLE_API_KEY":    "",
+		// Never the developer's real keyring: resolving through it made two
+		// runs in this session fail for reasons unrelated to the code, and it
+		// would do the same on a CI machine that has one.
+		auth.NoKeyringVar: "1",
 	}
 }
 
@@ -699,6 +703,7 @@ func TestSiteListingIsNotFetchedTwice(t *testing.T) {
 	env := map[string]string{
 		"STATABLE_CONFIG_DIR": dir,
 		"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+		auth.NoKeyringVar:     "1",
 		"STATABLE_API_URL":    srv.URL + "/api/v1",
 	}
 	if _, _, code := run(t, env, "now"); code != 0 {
@@ -749,6 +754,7 @@ func TestStaleSiteCacheRepairsItself(t *testing.T) {
 	env := map[string]string{
 		"STATABLE_CONFIG_DIR": dir,
 		"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+		auth.NoKeyringVar:     "1",
 		"STATABLE_API_URL":    srv.URL + "/api/v1",
 	}
 	run(t, env, "now")
@@ -792,6 +798,7 @@ func TestSiteCacheExpires(t *testing.T) {
 			env := map[string]string{
 				"STATABLE_CONFIG_DIR": dir,
 				"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+				auth.NoKeyringVar:     "1",
 				"STATABLE_API_URL":    srv.URL + "/api/v1",
 			}
 			run(t, env, "now")
@@ -960,6 +967,7 @@ func TestEmptyServerAnswersAreReportedNotPrintedBlank(t *testing.T) {
 			env := map[string]string{
 				"STATABLE_CONFIG_DIR": t.TempDir(),
 				"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+				auth.NoKeyringVar:     "1",
 				"STATABLE_API_URL":    srv.URL + "/api/v1",
 			}
 			out, _, code := run(t, env, tc.args...)
@@ -985,6 +993,7 @@ func TestAbsentEndsAtIsNullNotEmpty(t *testing.T) {
 	env := map[string]string{
 		"STATABLE_CONFIG_DIR": t.TempDir(),
 		"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+		auth.NoKeyringVar:     "1",
 		"STATABLE_API_URL":    srv.URL + "/api/v1",
 	}
 	out, _, code := run(t, env, "subscription", "--json")
@@ -1023,6 +1032,7 @@ func TestMachineFormatsKeepRawValues(t *testing.T) {
 	env := map[string]string{
 		"STATABLE_CONFIG_DIR": t.TempDir(),
 		"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+		auth.NoKeyringVar:     "1",
 		"STATABLE_API_URL":    srv.URL + "/api/v1",
 	}
 
@@ -1090,6 +1100,7 @@ func TestPoisonedSiteCacheIsRefused(t *testing.T) {
 	env := map[string]string{
 		"STATABLE_CONFIG_DIR": dir,
 		"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+		auth.NoKeyringVar:     "1",
 		"STATABLE_API_URL":    srv.URL + "/api/v1",
 	}
 	run(t, env, "now")
@@ -1153,6 +1164,7 @@ func TestNothingIsCachedIntoTheTempFallback(t *testing.T) {
 	env := map[string]string{
 		"STATABLE_CONFIG_DIR": fallback,
 		"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+		auth.NoKeyringVar:     "1",
 		"STATABLE_API_URL":    srv.URL + "/api/v1",
 	}
 	t.Cleanup(func() { os.RemoveAll(fallback) })
@@ -1194,6 +1206,7 @@ func TestCompletionNeverTouchesTheKeyring(t *testing.T) {
 	env := map[string]string{
 		"STATABLE_CONFIG_DIR": dir,
 		"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+		auth.NoKeyringVar:     "1",
 		"STATABLE_API_URL":    srv.URL + "/api/v1",
 	}
 	run(t, env, "now")
