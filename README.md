@@ -6,12 +6,6 @@ Sixteen commands over the [Stats API v1](https://statable.com/docs/developers/st
 
 ## Install
 
-**Arch, and Omarchy**
-
-```bash
-yay -S statable-bin
-```
-
 **macOS and Linux, with Homebrew**
 
 ```bash
@@ -47,6 +41,13 @@ cosign verify-blob checksums.txt \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 sha256sum --check checksums.txt --ignore-missing
 ```
+
+**Arch (not yet).** An AUR package is built by the release pipeline and will be
+published as `statable-bin`, but it does not exist yet: AUR account
+registration is closed while they deal with a wave of automated signups, so
+there is no maintainer account to publish it from. Until then, Arch and Omarchy
+users want `go install` or the archive above. This line will say `yay -S
+statable-bin` when that is true and not before.
 
 There is deliberately no `curl … | sh` installer. Piping a URL into a shell
 asks you to run whatever the server sends today, and it is the single loudest
