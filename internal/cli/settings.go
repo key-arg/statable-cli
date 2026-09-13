@@ -96,11 +96,19 @@ func settingRows(group string, resp *api.Response) ([][]string, error) {
 		if err := api.DecodeInto(resp, &v); err != nil {
 			return nil, err
 		}
+		// enabled is the list of feature ids that are on; features is the
+		// whole catalogue with a flag each. Showing both would repeat the
+		// same fact twice, so the row names what is on and the catalogue row
+		// names what could be.
+		available := make([]string, 0, len(v.Features))
+		for _, f := range v.Features {
+			available = append(available, f.ID)
+		}
 		return [][]string{
-			{"tracking.enabled", strconv.FormatBool(v.Enabled)},
 			{"tracking.bundle", v.Bundle},
-			{"tracking.version", v.Version},
-			{"tracking.features", strings.Join(v.Features, ", ")},
+			{"tracking.version", strconv.Itoa(v.Version)},
+			{"tracking.enabled", strings.Join(v.Enabled, ", ")},
+			{"tracking.available", strings.Join(available, ", ")},
 		}, nil
 	case "hostnames":
 		var v api.HostnameSettings
@@ -117,8 +125,8 @@ func settingRows(group string, resp *api.Response) ([][]string, error) {
 			return nil, err
 		}
 		return [][]string{
-			{"countries.allowed", strings.Join(v.Allowed, ", ")},
-			{"countries.blocked", strings.Join(v.Blocked, ", ")},
+			{"countries.allowed", strings.Join(api.Codes(v.Allowed), ", ")},
+			{"countries.blocked", strings.Join(api.Codes(v.Blocked), ", ")},
 		}, nil
 	case "blocked-ips":
 		var v api.BlockedIPSettings

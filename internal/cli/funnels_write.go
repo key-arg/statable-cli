@@ -13,6 +13,12 @@ import (
 	"github.com/key-arg/statable-cli/internal/output"
 )
 
+// The server's own bounds, from funnels.go.
+const (
+	funnelMinSteps = 2
+	funnelMaxSteps = 8
+)
+
 // parseFunnelStep reads one --step. A funnel step has a kind and a value, and
 // the shorthand keeps those two things in one argument:
 //
@@ -34,15 +40,19 @@ func parseFunnelStep(s string) (api.FunnelStep, error) {
 
 	switch kind {
 	case "page", "entry", "exit", "entry_page", "exit_page":
+		// The operator is an optional suffix, so it is taken from the END and
+		// only when it is one we know. Cutting at the first colon instead made
+		// a path containing one -- /a:b -- impossible to express, and silently
+		// mangled it when the tail happened to look like an operator.
 		value, op := rest, "e"
-		if v, suffix, found := strings.Cut(rest, ":"); found {
-			o, known := goalOperators[strings.ToLower(suffix)]
-			if !known {
-				return api.FunnelStep{}, clierr.Failf(clierr.CodeInvalidFormat,
-					"unknown match %q in step %q; use equals, begins or contains", suffix, s).
-					WithExit(clierr.ExitUsage)
+		if i := strings.LastIndex(rest, ":"); i >= 0 {
+			if o, known := goalOperators[strings.ToLower(rest[i+1:])]; known {
+				value, op = rest[:i], o
 			}
-			value, op = v, o
+		}
+		if value == "" {
+			return api.FunnelStep{}, clierr.Failf("INVALID_STEP",
+				"step %q has no path", s).WithExit(clierr.ExitUsage)
 		}
 		k := map[string]string{
 			"page": "page", "entry": "entry_page", "exit": "exit_page",
@@ -64,10 +74,12 @@ func parseFunnelStep(s string) (api.FunnelStep, error) {
 		return api.FunnelStep{Kind: "goal", GoalID: &id}, nil
 
 	case "scroll":
+		// 0 is a real depth on the server's side -- it means the page was
+		// reached without scrolling -- so the floor is 0, not 1.
 		n, err := strconv.Atoi(strings.TrimSpace(rest))
-		if err != nil || n < 1 || n > 100 {
+		if err != nil || n < 0 || n > 100 {
 			return api.FunnelStep{}, clierr.Failf("INVALID_STEP",
-				"scroll step %q needs a percentage from 1 to 100", s).
+				"scroll step %q needs a percentage from 0 to 100", s).
 				WithExit(clierr.ExitUsage)
 		}
 		return api.FunnelStep{Kind: "scroll", Threshold: &n}, nil
@@ -123,11 +135,18 @@ func (f *funnelFlags) body() (api.CreateFunnelRequest, error) {
 			b.Steps = append(b.Steps, step)
 		}
 	}
-	// The server rejects a one-step funnel, and so does arithmetic: a funnel
-	// is about what happens between steps.
-	if len(b.Steps) < 2 {
+	// funnels.go: funnelMinSteps = 2, funnelMaxSteps = 8. Both ends checked
+	// here so a ninth step is refused by name rather than by a 400 that does
+	// not say what the limit is.
+	if len(b.Steps) < funnelMinSteps || len(b.Steps) > funnelMaxSteps {
 		return b, clierr.Failf("INVALID_FUNNEL",
-			"a funnel needs at least two steps, got %d", len(b.Steps)).
+			"a funnel has between %d and %d steps, got %d",
+			funnelMinSteps, funnelMaxSteps, len(b.Steps)).
+			WithExit(clierr.ExitUsage)
+	}
+	if b.Scope != "" && b.Scope != "visitor" && b.Scope != "session" {
+		return b, clierr.Failf(clierr.CodeInvalidFormat,
+			"unknown scope %q; a funnel counts visitors or sessions", b.Scope).
 			WithExit(clierr.ExitUsage)
 	}
 	return b, nil
@@ -252,24 +271,33 @@ func newFunnelsDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := rt.confirm(yes, fmt.Sprintf("funnel %d", id)); err != nil {
-				return err
-			}
 			client, err := rt.Client(cmd.Context())
 			if err != nil {
 				return err
 			}
-			err = rt.withSite(cmd.Context(), func(site api.Site) error {
-				resp, rerr := client.Delete(cmd.Context(),
-					fmt.Sprintf("/sites/%d/funnels/%d", site.SiteID, id))
-				rt.traceResponse(resp)
-				if rerr != nil {
-					return explainWriteDisabled(rerr, "deleting a funnel")
-				}
-				return nil
-			})
+			// The site is resolved BEFORE the question, and the question names
+			// it. Asking "delete funnel 3?" and then working out which site that
+			// means is how the wrong one gets deleted.
+			//
+			// withSite is deliberately not used here. Its repair path retries
+			// the call against a freshly resolved site, which is right for a
+			// read and wrong for a delete: the retry would remove funnel %d on a
+			// different site from the one the user agreed to.
+			if _, rerr := rt.refreshSites(cmd.Context()); rerr != nil {
+				return rerr
+			}
+			site, err := rt.resolveSite(cmd.Context())
 			if err != nil {
 				return err
+			}
+			if err := rt.confirm(yes, fmt.Sprintf("funnel %d on %s", id, site.Name)); err != nil {
+				return err
+			}
+			resp, err := client.Delete(cmd.Context(),
+				fmt.Sprintf("/sites/%d/funnels/%d", site.SiteID, id))
+			rt.traceResponse(resp)
+			if err != nil {
+				return explainWriteDisabled(err, "deleting a funnel")
 			}
 			return rt.Out.EmitRecord(output.Record{
 				{Name: "status", Value: "deleted", Human: fmt.Sprintf("funnel %d is gone", id)},

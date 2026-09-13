@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/key-arg/statable-cli/internal/auth"
 )
 
 // goalsServer answers with the shape the backend actually returns: the storage
@@ -44,6 +46,7 @@ func goalsServer(t *testing.T, writeDisabled bool) (*httptest.Server, map[string
 	env := map[string]string{
 		"STATABLE_CONFIG_DIR": t.TempDir(),
 		"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+		auth.NoKeyringVar:     "1",
 		"STATABLE_API_URL":    srv.URL + "/api/v1",
 	}
 	return srv, env

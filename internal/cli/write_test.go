@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/key-arg/statable-cli/internal/auth"
 )
 
 // writeServer records every request so a test can assert that nothing was
@@ -39,6 +41,10 @@ func newWriteServer(t *testing.T) (*writeServer, map[string]string) {
 		case strings.HasSuffix(p, "/keys") && r.Method == http.MethodPost:
 			io.WriteString(rw, `{"id":1,"name":"ci","prefix":"stbl_ab","scopes":"read",
 				"created_at":"2026-01-01T00:00:00Z","token":"stbl_the_secret"}`)
+		case strings.HasSuffix(p, "/verify-otp"):
+			io.WriteString(rw, `{"token":"stbl_registered","created":true,
+				"key":{"id":5,"name":"cli","prefix":"stbl_xy","scopes":"read",
+				       "created_at":"2026-01-01T00:00:00Z"}}`)
 		case strings.HasSuffix(p, "/rotate"):
 			io.WriteString(rw, `{"id":1,"name":"ci","prefix":"stbl_cd","scopes":"read",
 				"created_at":"2026-01-01T00:00:00Z","token":"stbl_rotated"}`)
@@ -49,9 +55,20 @@ func newWriteServer(t *testing.T) (*writeServer, map[string]string) {
 			io.WriteString(rw, `{"id":45,"site_id":7,"name":"F","scope":"visitor",
 				"strict_order":false,"steps":[{"kind":"page"},{"kind":"event"}],
 				"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}`)
+		case strings.Contains(p, "/settings/tracking"):
+			// The real shape, copied from api_v1_config.go. The first version
+			// of this fixture was written from the same misreading as the
+			// types, so the tests agreed with the bug.
+			io.WriteString(rw, `{"site_id":7,"version":3,"bundle":"core",
+				"enabled":["outbound"],
+				"features":[{"id":"outbound","label":"Outbound","enabled":true,
+				             "locked":false,"default":false}]}`)
+		case strings.Contains(p, "/settings/countries"):
+			io.WriteString(rw, `{"allowed":[{"code":"UA","created_at":"2026-01-01T00:00:00Z"}],
+				"blocked":[]}`)
 		case strings.Contains(p, "/settings/"):
-			io.WriteString(rw, `{"site_id":7,"count":0,"enabled":true,"allowed":[],"blocked":[],
-				"blocked_ips":[],"features":[],"version":"1","bundle":"a"}`)
+			io.WriteString(rw, `{"site_id":7,"count":0,"enabled":true,
+				"allowed":[],"blocked":[],"blocked_ips":[]}`)
 		default:
 			io.WriteString(rw, `{"ok":true}`)
 		}
@@ -61,6 +78,7 @@ func newWriteServer(t *testing.T) (*writeServer, map[string]string) {
 	return w, map[string]string{
 		"STATABLE_CONFIG_DIR": t.TempDir(),
 		"STATABLE_API_KEY":    "stbl_test_key_long_enough",
+		auth.NoKeyringVar:     "1",
 		"STATABLE_API_URL":    w.srv.URL + "/api/v1",
 	}
 }
@@ -306,5 +324,70 @@ func TestWeekStartAcceptsNamesAndNumbers(t *testing.T) {
 	}
 	if ws.sent("PATCH") {
 		t.Error("an invalid week start was sent")
+	}
+}
+
+// TestSettingsDecodeRealResponses: the three commands that could not decode a
+// real response at all. Every one of them passed its tests before, because the
+// fixture was written from the same misreading as the type.
+func TestSettingsDecodeRealResponses(t *testing.T) {
+	for _, args := range [][]string{
+		{"settings"},
+		{"settings", "tracking"},
+		{"settings", "countries"},
+	} {
+		_, env := newWriteServer(t)
+		out, errOut, code := run(t, env, args...)
+		if code != 0 {
+			t.Errorf("`statable %s` exited %d: %s%s",
+				strings.Join(args, " "), code, out, errOut)
+		}
+	}
+
+	// And the values actually arrive, not just the exit code.
+	_, env := newWriteServer(t)
+	out, _, _ := run(t, env, "settings", "tracking")
+	for _, want := range []string{"core", "outbound", "3"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("tracking output is missing %q:\n%s", want, out)
+		}
+	}
+	out, _, _ = run(t, env, "settings", "countries")
+	if !strings.Contains(out, "UA") {
+		t.Errorf("a listed country did not survive decoding:\n%s", out)
+	}
+}
+
+// TestBlockedIPsSendsABareArray: apiPutBlockedIPsHandler unmarshals into
+// []string. An object is a 400 every time, and the GET answering with an
+// object is what made the symmetry look safe.
+func TestBlockedIPsSendsABareArray(t *testing.T) {
+	ws, env := newWriteServer(t)
+	if _, _, code := run(t, env, "settings", "set", "blocked-ips",
+		"--ip", "203.0.113.4"); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	body := strings.TrimSpace(ws.bodyOf("PUT"))
+	if !strings.HasPrefix(body, "[") {
+		t.Fatalf("the server decodes a bare array; this sent %s", body)
+	}
+	if strings.Contains(body, "blocked_ips") {
+		t.Fatalf("an object was sent where an array is decoded: %s", body)
+	}
+}
+
+// TestTrackingClearSendsAnEmptyArrayNotNull: a nil slice marshals to null, and
+// the server rejects that as the field being missing.
+func TestTrackingClearSendsAnEmptyArrayNotNull(t *testing.T) {
+	ws, env := newWriteServer(t)
+	if _, _, code := run(t, env, "settings", "set", "tracking", "--clear"); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	body := ws.bodyOf("PUT")
+	if strings.Contains(body, "null") {
+		t.Fatalf("--clear sent null, which the server reads as absent: %s", body)
+	}
+	if !strings.Contains(body, `"features":[]`) {
+		t.Fatalf("--clear should send an empty list: %s", body)
 	}
 }

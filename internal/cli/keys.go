@@ -121,21 +121,25 @@ func newKeyEventsCmd() *cobra.Command {
 			}
 
 			human := rt.Ctx.HumanOutput()
+			// No id column: the server does not send one, and a column of
+			// zeroes looks like data.
 			t := output.Table{
-				Columns: []string{"id", "event", "ip", "created_at"},
-				Right:   []int{0},
-			}
-			if !human {
-				t.Numeric = []int{0}
+				Columns:   []string{"event", "ip", "actor_key_id", "created_at", "user_agent"},
+				HumanOmit: []int{4},
 			}
 			for _, e := range out.Events {
-				ip := ""
+				ip, agent, actor := "", "", ""
 				if e.IP != nil {
 					ip = *e.IP
 				}
+				if e.UserAgent != nil {
+					agent = *e.UserAgent
+				}
+				if e.ActorKeyID != nil {
+					actor = strconv.FormatInt(*e.ActorKeyID, 10)
+				}
 				t.Rows = append(t.Rows, []string{
-					strconv.FormatInt(e.ID, 10), e.Event, ip,
-					humanTime(human, &e.CreatedAt),
+					e.Event, ip, actor, humanTime(human, &e.CreatedAt), agent,
 				})
 			}
 			return rt.Out.Emit(t)

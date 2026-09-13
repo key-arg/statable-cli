@@ -176,13 +176,40 @@ func (s *Store) Resolve(ctx context.Context, flagKey string, env Lookup) Resolve
 			}
 		}
 	}
-	if k, ok := s.getKeyring(ctx); ok {
-		return Resolved{Key: k, Source: SourceKeyring}
+	if !keyringDisabled(env) {
+		if k, ok := s.getKeyring(ctx); ok {
+			return Resolved{Key: k, Source: SourceKeyring}
+		}
 	}
 	if k, ok := s.readFile(); ok {
 		return Resolved{Key: k, Source: SourceFile, Path: s.credentialsPath()}
 	}
 	return Resolved{Source: SourceNone}
+}
+
+// NoKeyringVar switches the system keyring off for one invocation.
+//
+// It exists for two situations that are really the same one. A machine with no
+// keyring daemon -- a container, a CI runner, a server -- otherwise waits out
+// the full timeout on every command before falling back. And this program's own
+// tests resolved through the real keyring on the developer's machine, which
+// made two runs out of a few hundred fail for reasons that had nothing to do
+// with the code under test.
+const NoKeyringVar = "STATABLE_NO_KEYRING"
+
+func keyringDisabled(env Lookup) bool {
+	if env == nil {
+		return false
+	}
+	v, ok := env(NoKeyringVar)
+	if !ok {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "0", "false", "no":
+		return false
+	}
+	return true
 }
 
 // ResolveCheap is Resolve without the keyring.

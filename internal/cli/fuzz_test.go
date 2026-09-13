@@ -54,14 +54,20 @@ func FuzzParseFunnelStep(f *testing.F) {
 			if step.Operator == nil {
 				t.Fatalf("parseFunnelStep(%q) made a path step with no operator", in)
 			}
+			// funnels.go documents kind=page as (e|b|c|r), the same four goals
+			// take. The fuzzer found this the moment r was added to the parser
+			// and not to the invariant.
 			switch *step.Operator {
-			case "e", "b", "c":
+			case "e", "b", "c", "r":
 			default:
 				t.Fatalf("parseFunnelStep(%q) produced operator %q, which the API does not know",
 					in, *step.Operator)
 			}
 		}
-		if step.Threshold != nil && (*step.Threshold < 1 || *step.Threshold > 100) {
+		// 0 is a real depth on the server: the page was reached without
+		// scrolling. The floor here was 1 and the fuzzer caught the day the
+		// parser was corrected and this was not.
+		if step.Threshold != nil && (*step.Threshold < 0 || *step.Threshold > 100) {
 			t.Fatalf("parseFunnelStep(%q) accepted scroll depth %d", in, *step.Threshold)
 		}
 		if step.GoalID != nil && *step.GoalID <= 0 {

@@ -49,6 +49,8 @@ func newSitesCreateCmd() *cobra.Command {
 			if err := api.DecodeInto(resp, &out); err != nil {
 				return err
 			}
+			// The listing no longer includes every site the key can read.
+			rt.dropSiteCache()
 			rt.Out.Note("created %s (site_id %d); the tag below goes on every page",
 				out.Name, out.SiteID)
 			return rt.Out.EmitRecord(output.Record{
@@ -125,6 +127,10 @@ func newSitesEditCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// A renamed site makes the cached listing wrong, and this command
+			// is the thing that renamed it. Leaving it would have the CLI
+			// creating the stale entry its own repair path exists to survive.
+			rt.dropSiteCache()
 			return rt.Out.EmitRecord(output.Record{
 				{Name: "status", Value: "ok", Human: fmt.Sprintf("%s updated", site.Name)},
 				{Name: "site_id", Value: site.SiteID, OmitHuman: true},
@@ -174,8 +180,16 @@ func newSitesDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// The site is resolved before the question, so the question can
-			// name it. "Delete the site?" is not something anyone can answer.
+			// Resolved from a FRESH listing, never from the cache.
+			//
+			// The cache is good for a day, and a name that pointed at one site
+			// yesterday can point at another today. Everywhere else a stale id
+			// means one wrong reading and a self-repair; here it means deleting
+			// a site the prompt did not name. The one request this costs is the
+			// cheapest insurance in the program.
+			if _, rerr := rt.refreshSites(cmd.Context()); rerr != nil {
+				return rerr
+			}
 			site, err := rt.resolveSite(cmd.Context())
 			if err != nil {
 				return err

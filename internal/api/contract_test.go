@@ -292,3 +292,107 @@ func TestKeyScopeMembership(t *testing.T) {
 		}
 	}
 }
+
+// TestSettingsTypesMatchTheServer.
+//
+// Every payload below is the shape the backend actually marshals, copied from
+// the handler that builds it. The first version of these types was written
+// from the OpenAPI summary and from a fake server I wrote from the same
+// misreading, so the tests passed against a fiction while three commands could
+// not decode a single real response.
+func TestSettingsTypesMatchTheServer(t *testing.T) {
+	t.Run("tracking", func(t *testing.T) {
+		// api_v1_config.go: version is a number, enabled is a list of ids,
+		// features are objects.
+		const body = `{"site_id":7,"version":3,"bundle":"core",
+			"enabled":["outbound","scroll"],
+			"features":[{"id":"outbound","label":"Outbound links","enabled":true,
+			             "locked":false,"default":false,"size_br":412}]}`
+		var v TrackingSettings
+		if err := json.Unmarshal([]byte(body), &v); err != nil {
+			t.Fatalf("a real tracking response does not decode: %v", err)
+		}
+		if v.Version != 3 || v.Bundle != "core" {
+			t.Fatalf("decoded wrong: %+v", v)
+		}
+		if len(v.Enabled) != 2 || v.Enabled[0] != "outbound" {
+			t.Fatalf("enabled is the list of ids that are on: %v", v.Enabled)
+		}
+		if len(v.Features) != 1 || v.Features[0].ID != "outbound" || !v.Features[0].Enabled {
+			t.Fatalf("features are objects: %+v", v.Features)
+		}
+	})
+
+	t.Run("countries read", func(t *testing.T) {
+		// country_list.go: entries, not bare codes. Only a site with a country
+		// actually listed exposes this, which is why an empty fixture hid it.
+		const body = `{"allowed":[{"code":"UA","created_at":"2026-01-01T00:00:00Z"}],
+			"blocked":[{"code":"RU","created_at":"2026-01-02T00:00:00Z"}]}`
+		var v CountrySettings
+		if err := json.Unmarshal([]byte(body), &v); err != nil {
+			t.Fatalf("a real country response does not decode: %v", err)
+		}
+		if got := Codes(v.Allowed); len(got) != 1 || got[0] != "UA" {
+			t.Fatalf("allowed = %v", got)
+		}
+		if got := Codes(v.Blocked); len(got) != 1 || got[0] != "RU" {
+			t.Fatalf("blocked = %v", got)
+		}
+	})
+
+	t.Run("hostnames really are strings", func(t *testing.T) {
+		// site_settings.go: this one is []string, which is what made the
+		// country shape look safe by analogy.
+		const body = `{"allowed":["example.com"],"blocked":["staging.example.com"]}`
+		var v HostnameSettings
+		if err := json.Unmarshal([]byte(body), &v); err != nil {
+			t.Fatal(err)
+		}
+		if len(v.Allowed) != 1 || v.Allowed[0] != "example.com" {
+			t.Fatalf("decoded wrong: %+v", v)
+		}
+	})
+}
+
+// TestVerifyOTPNestsTheKey: api_v1_auth.go puts the key under "key" beside the
+// token. Decoding it flat left id, prefix and scopes at zero while the token
+// lined up, so the command looked like it worked.
+func TestVerifyOTPNestsTheKey(t *testing.T) {
+	const body = `{"token":"stbl_the_secret","created":true,
+		"key":{"id":42,"name":"cli","prefix":"stbl_abcd","scopes":"read",
+		       "website_id":null,"created_at":"2026-01-01T00:00:00Z"},
+		"user":{"id":"u_1","email":"you@example.com"}}`
+
+	var v VerifyOTPResponse
+	if err := json.Unmarshal([]byte(body), &v); err != nil {
+		t.Fatal(err)
+	}
+	if v.Token != "stbl_the_secret" {
+		t.Fatalf("token = %q", v.Token)
+	}
+	if v.Key.ID != 42 || v.Key.Prefix != "stbl_abcd" || v.Key.Scopes != "read" {
+		t.Fatalf("the key is nested under \"key\" and did not decode: %+v", v.Key)
+	}
+	if !v.Created {
+		t.Error("created distinguishes a new account from a key on an existing one")
+	}
+}
+
+// TestKeyEventHasNoID: api_keys.go sends event, ip, user_agent, created_at and
+// actor_key_id. A column reading an absent id printed 0 on every row.
+func TestKeyEventHasNoID(t *testing.T) {
+	const body = `{"events":[{"event":"created","ip":"203.0.113.4",
+		"user_agent":"statable-cli/0.2.2","created_at":"2026-01-01T00:00:00Z",
+		"actor_key_id":null}]}`
+	var out KeyEventsResponse
+	if err := json.Unmarshal([]byte(body), &out); err != nil {
+		t.Fatal(err)
+	}
+	e := out.Events[0]
+	if e.Event != "created" || e.IP == nil || *e.IP != "203.0.113.4" {
+		t.Fatalf("decoded wrong: %+v", e)
+	}
+	if e.ActorKeyID != nil {
+		t.Error("a null actor means the dashboard, not key zero")
+	}
+}

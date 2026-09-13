@@ -101,7 +101,7 @@ func newAuthRegisterCmd(insecure *bool) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var out api.CreatedKey
+			var out api.VerifyOTPResponse
 			if err := api.DecodeInto(resp, &out); err != nil {
 				return err
 			}
@@ -124,9 +124,10 @@ func newAuthRegisterCmd(insecure *bool) *cobra.Command {
 			return rt.Out.EmitRecord(output.Record{
 				{Name: "token", Value: out.Token, Human: out.Token},
 				{Name: "email", Value: email, OmitHuman: true},
-				{Name: "id", Value: out.ID, OmitHuman: true},
-				{Name: "prefix", Value: out.Prefix, OmitHuman: true},
-				{Name: "scopes", Value: out.Scopes, OmitHuman: true},
+				{Name: "id", Value: out.Key.ID, OmitHuman: true},
+				{Name: "prefix", Value: out.Key.Prefix, OmitHuman: true},
+				{Name: "scopes", Value: out.Key.Scopes, OmitHuman: true},
+				{Name: "created", Value: out.Created, OmitHuman: true},
 				{Name: "stored", Value: string(src), OmitHuman: true},
 			})
 		},
