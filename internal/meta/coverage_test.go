@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -75,7 +76,8 @@ func TestEveryCoveredCommandExists(t *testing.T) {
 		}
 		// One endpoint may be reached by several commands.
 		for _, name := range strings.Split(e.Command, ",") {
-			args := append(strings.Fields(strings.TrimSpace(name)), "--help")
+			name = strings.TrimSpace(name)
+			args := append(strings.Fields(name), "--help")
 			if out, err := exec.Command(bin, args...).CombinedOutput(); err != nil {
 				t.Errorf("%s %s names %q, which does not run: %v\n%s",
 					e.Method, e.Path, name, err, out)
@@ -173,7 +175,14 @@ func isAPIPath(p string) bool {
 
 func buildCLI(t *testing.T) string {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "statable")
+	// Windows will not execute a file without the extension, and go build
+	// does not add one for you when -o names the path. The first version of
+	// this failed every row of the table on Windows for that reason alone.
+	name := "statable"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	bin := filepath.Join(t.TempDir(), name)
 	cmd := exec.Command("go", "build", "-o", bin, "./cmd/statable")
 	cmd.Dir = repoRoot(t)
 	if out, err := cmd.CombinedOutput(); err != nil {
