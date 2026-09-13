@@ -83,7 +83,7 @@ func newSitesCmd() *cobra.Command {
 			return rt.Out.Emit(t)
 		},
 	}
-	cmd.AddCommand(newSitesUseCmd())
+	cmd.AddCommand(newSitesUseCmd(), newSitesCreateCmd(), newSitesEditCmd(), newSitesDeleteCmd())
 	return cmd
 }
 

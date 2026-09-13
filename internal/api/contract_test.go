@@ -249,3 +249,46 @@ func TestSnippetFieldNames(t *testing.T) {
 		t.Errorf("snippet decoded empty: %+v", sn)
 	}
 }
+
+// TestCreatedKeyReadsTokenNotKey.
+//
+// POST /keys and POST /keys/{id}/rotate embed the APIKey struct and add the
+// secret beside it as `token`. A field tagged `key` compiles, reads naturally,
+// and decodes to "" -- and for this one response an empty value means the
+// secret is lost, because the server never returns it again.
+func TestCreatedKeyReadsTokenNotKey(t *testing.T) {
+	const body = `{"id":42,"name":"ci","prefix":"stbl_abcd","scopes":"read",
+		"website_id":null,"created_at":"2026-09-13T10:00:00Z","expires_at":null,
+		"token":"stbl_the_actual_secret"}`
+
+	var k CreatedKey
+	if err := json.Unmarshal([]byte(body), &k); err != nil {
+		t.Fatal(err)
+	}
+	if k.Token != "stbl_the_actual_secret" {
+		t.Fatalf("Token = %q; the server calls the secret `token`, and it is shown once", k.Token)
+	}
+	// The embedded fields have to survive too.
+	if k.ID != 42 || k.Name != "ci" || k.Prefix != "stbl_abcd" {
+		t.Fatalf("the embedded key did not decode: %+v", k.APIKey)
+	}
+	if k.WebsiteID != nil {
+		t.Errorf("website_id null means every site, not site zero")
+	}
+}
+
+// TestKeyScopeMembership: Scopes is a comma-separated string, and a substring
+// check would say a read-only key can manage keys.
+func TestKeyScopeMembership(t *testing.T) {
+	k := APIKey{Scopes: "read,sites:write"}
+	for _, want := range []string{"read", "sites:write"} {
+		if !k.Scope(want) {
+			t.Errorf("Scope(%q) = false", want)
+		}
+	}
+	for _, no := range []string{"keys:manage", "write", "read:all", ""} {
+		if k.Scope(no) {
+			t.Errorf("Scope(%q) = true, but it is not granted", no)
+		}
+	}
+}

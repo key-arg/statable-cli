@@ -11,6 +11,8 @@ import (
 // The API sends nanosecond precision, and "2026-06-01T10:00:00.123456789Z" is
 // nine digits nobody reads in a column they are scanning for a date. A value
 // that does not parse is passed through untouched rather than guessed at.
+func shortInstant(s string) string { return shortTimestamp(s) }
+
 func shortTimestamp(s string) string {
 	t, err := time.Parse(time.RFC3339, s)
 	if err != nil {

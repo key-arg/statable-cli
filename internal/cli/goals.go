@@ -13,7 +13,7 @@ import (
 )
 
 func newGoalsCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "goals",
 		Short: "The conversion goals defined on a site",
 		Long: "The goals a site has defined, and what each one matches.\n\n" +
@@ -68,6 +68,8 @@ func newGoalsCmd() *cobra.Command {
 			return rt.Out.Emit(t)
 		},
 	}
+	cmd.AddCommand(newGoalsCreateCmd(), newGoalsEditCmd(), newGoalsDeleteCmd())
+	return cmd
 }
 
 // explainWriteDisabled turns one server answer into something actionable.
