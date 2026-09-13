@@ -2,7 +2,9 @@
 
 Statable analytics from the command line: a terminal, a script, or CI.
 
-Sixteen commands over the [Stats API v1](https://statable.com/docs/developers/stats-api/).
+Every endpoint of the [Stats API v1](https://statable.com/docs/developers/stats-api/)
+— all thirty-five of them, reading and writing. A test fails if the API grows
+an endpoint the CLI has no command for.
 
 ## Install
 
