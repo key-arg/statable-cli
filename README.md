@@ -2,7 +2,7 @@
 
 Statable analytics from the command line: a terminal, a script, or CI.
 
-Every endpoint of the [Stats API v1](https://statable.com/docs/developers/stats-api/)
+Every endpoint of the [Stats API v1](https://statable.com/docs/developers/stats-api/overview/)
 — all thirty-five of them, reading and writing. A test fails if the API grows
 an endpoint the CLI has no command for.
 
@@ -344,3 +344,10 @@ dozen places and the suite has to notice. Three rounds of that have found
 tests that could not fail — a keyring test whose fake ignored the delay it set
 up, a truth table with no positive case that an all-`false` implementation
 satisfied, a timing assertion that no real machine could ever trip.
+
+## Statable
+
+[Docs](https://statable.com/docs/) · [Stats API](https://statable.com/docs/developers/stats-api/overview/) · [Blog](https://statable.com/blog/) · [Status](https://status.statable.com)
+
+Cookieless web analytics hosted in the EU, by [Key Arg B.V.](https://statable.com)
+Privacy: [statable.com/privacy](https://statable.com/privacy) · Terms: [statable.com/terms](https://statable.com/terms)
