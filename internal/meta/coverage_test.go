@@ -18,23 +18,48 @@ func TestEveryAPIEndpointHasADecision(t *testing.T) {
 	if len(Coverage) == 0 {
 		t.Fatal("the coverage table is empty; this check would pass on nothing")
 	}
-	seen := map[string]bool{}
-	for _, e := range Coverage {
-		key := e.Method + " " + e.Path
-		if seen[key] {
-			t.Errorf("%s appears twice", key)
+	if problems := Validate(Coverage); len(problems) > 0 {
+		for _, p := range problems {
+			t.Error(p)
 		}
-		seen[key] = true
+	}
+}
 
-		if e.Method == "" || e.Path == "" {
-			t.Errorf("%+v has no method or path", e)
-		}
-		if e.Command == "" && strings.TrimSpace(e.Why) == "" {
-			t.Errorf("%s has no command and no reason; decide one or the other", key)
-		}
-		if e.Command != "" && e.Why != "" {
-			t.Errorf("%s has both a command and a reason not to have one", key)
-		}
+// TestValidateCatchesABrokenTable: the check above can only ever see a correct
+// table, so on its own it proves nothing. These are the shapes it must reject.
+func TestValidateCatchesABrokenTable(t *testing.T) {
+	cases := []struct {
+		name  string
+		table []APIEndpoint
+		want  string
+	}{
+		{"no decision", []APIEndpoint{{Method: "GET", Path: "/x"}}, "no command and no reason"},
+		{"both", []APIEndpoint{{Method: "GET", Path: "/x", Command: "c", Why: "w"}}, "both a command"},
+		{"duplicate", []APIEndpoint{
+			{Method: "GET", Path: "/x", Command: "c"},
+			{Method: "GET", Path: "/x", Command: "c"},
+		}, "appears twice"},
+		{"no path", []APIEndpoint{{Method: "GET", Command: "c"}}, "no method or path"},
+		{"empty", nil, "empty"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			problems := Validate(tc.table)
+			if len(problems) == 0 {
+				t.Fatalf("Validate accepted %s", tc.name)
+			}
+			if !strings.Contains(strings.Join(problems, "\n"), tc.want) {
+				t.Fatalf("the complaint does not mention %q: %v", tc.want, problems)
+			}
+		})
+	}
+
+	// And a correct table produces no complaints, or the check is just noise.
+	if problems := Validate([]APIEndpoint{
+		{Method: "GET", Path: "/a", Command: "a"},
+		{Method: "POST", Path: "/a", Why: "writes are out of scope"},
+	}); len(problems) > 0 {
+		t.Fatalf("a correct table was rejected: %v", problems)
 	}
 }
 
@@ -105,13 +130,13 @@ func TestEveryRequestPathIsInTheTable(t *testing.T) {
 			if err != nil {
 				return err
 			}
+			// The guard used to be per FILE: a file with no client.Get( or
+			// client.Post( was skipped entirely, which exempted every path in
+			// settings_write.go because its calls go through a helper. isAPIPath
+			// already does the filtering, so the file-level test only ever
+			// created a blind spot.
 			for _, m := range call.FindAllStringSubmatch(string(b), -1) {
 				p := normalisePath(m[1])
-				// Only paths that look like API calls, not file paths or URLs.
-				if !strings.Contains(string(b), "client."+"Get(") &&
-					!strings.Contains(string(b), "client.Post(") {
-					continue
-				}
 				if isAPIPath(p) && !matches(p) {
 					t.Errorf("%s calls %q, which is not in the coverage table",
 						filepath.Base(path), m[1])
