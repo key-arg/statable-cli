@@ -103,6 +103,34 @@ reading them needs only the read scope, so on a deployment with writes switched
 off they answer `write_disabled` — the command says that rather than letting a
 404 read as a missing site.
 
+## Changing things
+
+The CLI covers the whole API, not only the reading half.
+
+```bash
+statable sites create https://example.com
+statable sites edit --timezone Europe/Kyiv
+statable goals create --name Signup --event Signup
+statable funnels create --name Checkout --step page:/pricing --step event:Signup
+statable keys create ci --scope read
+statable settings set countries --block RU --block BY
+```
+
+Three rules apply to everything that writes.
+
+**Deletes and rotations ask first.** Without a terminal they need `--yes`
+rather than waiting on a question nobody can answer, which is the same rule
+this program follows everywhere about input.
+
+**PUT means replace.** Every `settings set` and every `edit` replaces the whole
+thing; read the current value first if you mean to add to it. An empty
+replacement has to be spelled `--clear`, because doing it by accident empties a
+blocklist.
+
+**A minted secret is shown once.** `keys create` and `keys rotate` print it
+alone, so `--json | jq -r .token` captures it. The server never returns it
+again.
+
 A funnel's conversion rate is cumulative: it is measured against everyone who
 entered, not against the step before. Dropoff is the opposite and counts
 against the previous step alone.

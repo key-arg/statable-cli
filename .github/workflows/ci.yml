@@ -61,6 +61,9 @@ jobs:
           go test ./internal/output  -run=XXX -fuzz=FuzzEmit           -fuzztime=30s
           go test ./internal/output  -run=XXX -fuzz=FuzzSanitize       -fuzztime=30s
           go test ./internal/auth    -run=XXX -fuzz=FuzzRedact         -fuzztime=30s
+          go test ./internal/cli     -run=XXX -fuzz=FuzzParseFunnelStep -fuzztime=30s
+          go test ./internal/cli     -run=XXX -fuzz=FuzzParseWeekStart  -fuzztime=30s
+          go test ./internal/cli     -run=XXX -fuzz=FuzzSettingsGroup   -fuzztime=30s
 
   vulnerabilities:
     # The first release shipped on a Go with seven known standard-library
