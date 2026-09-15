@@ -362,6 +362,9 @@ go run ./cmd/gen-docs \
 The docs build refuses a page that disagrees with the manifest written beside
 it, so a section lost by hand fails there rather than going live.
 
+Release notes are in [CHANGELOG.md](CHANGELOG.md). To report a vulnerability, see
+[SECURITY.md](SECURITY.md).
+
 ## Statable
 
 [Docs](https://statable.com/docs/) · [Stats API](https://statable.com/docs/developers/stats-api/overview/) · [Blog](https://statable.com/blog/) · [Status](https://status.statable.com)
