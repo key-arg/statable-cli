@@ -6,6 +6,13 @@ Every endpoint of the [Stats API v1](https://statable.com/docs/developers/stats-
 — all thirty-five of them, reading and writing. A test fails if the API grows
 an endpoint the CLI has no command for.
 
+![statable reading a live site: visitors now, a month against the one before it, a weekly series, the top pages, a CI threshold check, and JSON through jq](demo/statable.gif)
+
+Real output from the public demo site,
+[statable.com/share/03D3Cfb9eA](https://statable.com/share/03D3Cfb9eA). Rebuild
+the recording with `asciinema rec -c demo/demo.sh demo/demo.cast` and
+`agg demo/demo.cast demo/statable.gif`.
+
 ## Install
 
 **macOS and Linux, with Homebrew**
