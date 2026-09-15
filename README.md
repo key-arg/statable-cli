@@ -345,6 +345,23 @@ tests that could not fail — a keyring test whose fake ignored the delay it set
 up, a truth table with no positive case that an all-`false` implementation
 satisfied, a timing assertion that no real machine could ever trip.
 
+### After a release
+
+The command reference at [statable.com/docs/cli/commands](https://statable.com/docs/cli/commands/)
+is generated from the command tree, not written. Regenerate it from the tag
+people can install, not from `main`:
+
+```bash
+git checkout v0.3.0
+go run ./cmd/gen-docs \
+  -web ../statable.com-docs/docs/cli/commands.md \
+  -manifest ../statable.com-docs/hooks/cli-commands.json \
+  -version v0.3.0 "$(mktemp -d)"
+```
+
+The docs build refuses a page that disagrees with the manifest written beside
+it, so a section lost by hand fails there rather than going live.
+
 ## Statable
 
 [Docs](https://statable.com/docs/) · [Stats API](https://statable.com/docs/developers/stats-api/overview/) · [Blog](https://statable.com/blog/) · [Status](https://status.statable.com)

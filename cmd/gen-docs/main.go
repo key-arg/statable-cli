@@ -10,6 +10,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -24,9 +25,19 @@ import (
 )
 
 func main() {
+	web := flag.String("web", "", "also write the MkDocs command reference to this file")
+	manifestPath := flag.String("manifest", "", "with -web, write the command list the docs build checks the page against")
+	version := flag.String("version", "", "with -web, the release the page says it describes")
+	flag.Parse()
 	out := "."
-	if len(os.Args) > 1 {
-		out = os.Args[1]
+	if flag.NArg() > 0 {
+		out = flag.Arg(0)
+	}
+	if *web != "" && (*manifestPath == "" || *version == "") {
+		// A page without its manifest passes a docs build that has nothing to
+		// compare it with, and a page without a version cannot say which
+		// release it describes. Both are the drift this mode exists to stop.
+		fail(fmt.Errorf("-web needs -manifest and -version"))
 	}
 	// NewRoot wants real files because the runtime asks them whether they are
 	// terminals. Nothing is written to either: only the command tree is read.
@@ -46,6 +57,26 @@ func main() {
 	if err := writeManPages(root, filepath.Join(out, "manpages")); err != nil {
 		fail(err)
 	}
+	if *web != "" {
+		if err := writeFile(*web, func(w io.Writer) error { writeWeb(w, root, *version); return nil }); err != nil {
+			fail(err)
+		}
+		if err := writeFile(*manifestPath, func(w io.Writer) error { return writeManifest(w, root, *version) }); err != nil {
+			fail(err)
+		}
+	}
+}
+
+func writeFile(path string, write func(io.Writer) error) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	if err := write(f); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func fail(err error) {
