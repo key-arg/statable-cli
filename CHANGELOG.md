@@ -8,6 +8,22 @@ release may add commands and flags but does not remove or rename them.
 
 ## Unreleased
 
+## [0.4.0] — 2026-09-16
+
+### Added
+
+- A container image, `statable/statable`, for `linux/amd64` and `linux/arm64`.
+  It is the binary this release already built and signed, on distroless: no
+  shell, no package manager, running as a non-root user.
+
+  ```bash
+  docker run --rm -e STATABLE_API_KEY statable/statable query \
+    --metric visitors,pageviews --range 7d
+  ```
+
+  A container has no keyring and no home directory to write to, so the key
+  comes from `STATABLE_API_KEY` and the CLI does not prompt.
+
 ### Development
 
 - `gen-docs` takes `-web`, `-manifest` and `-version`, and writes the command
