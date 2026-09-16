@@ -33,6 +33,18 @@ go install github.com/key-arg/statable-cli/cmd/statable@latest
 mise use -g "ubi:key-arg/statable-cli[exe=statable]"
 ```
 
+**Docker**
+
+```bash
+docker run --rm -e STATABLE_API_KEY docker.io/statable/statable query \
+  --metric visitors,pageviews --range 7d
+```
+
+The image is `linux/amd64` and `linux/arm64`, built on distroless from the same
+binary the release signs, and it carries nothing else: no shell, no package
+manager. There is no keyring inside a container and no home directory to write
+to, so the key comes from `STATABLE_API_KEY` and the CLI does not prompt.
+
 The `exe` is not optional. ubi looks inside the archive for a file named after
 the project, and the binary is `statable` rather than `statable-cli`; without
 it the install fails with "could not find any files matching [statable-cli*]".
@@ -149,6 +161,13 @@ For CI:
 ```bash
 statable check --metric visitors --range 7d --min 100
 statable check --metric bounce_rate --max 60
+```
+
+The same two checks in a pipeline that has Docker but no Go toolchain:
+
+```bash
+docker run --rm -e STATABLE_API_KEY docker.io/statable/statable \
+  check --metric visitors --range 7d --min 100
 ```
 
 The exit code is the answer: 0 within bounds, 3 outside them, and the usual 1
