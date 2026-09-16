@@ -8,6 +8,8 @@ release may add commands and flags but does not remove or rename them.
 
 ## Unreleased
 
+## [0.4.4] — 2026-09-16
+
 ### Added
 
 - Windows installs through winget: `winget install KeyArg.Statable`. The
