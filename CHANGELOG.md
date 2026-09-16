@@ -8,6 +8,13 @@ release may add commands and flags but does not remove or rename them.
 
 ## Unreleased
 
+## [0.4.2] — 2026-09-16
+
+### Fixed
+
+- The image builds. One build context serves every platform, so the binary
+  lives under `$TARGETPLATFORM/` rather than at the root of the context.
+
 ## [0.4.1] — 2026-09-16
 
 ### Fixed

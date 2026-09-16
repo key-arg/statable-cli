@@ -8,7 +8,11 @@
 # No shell and no package manager means nothing to patch and nothing to exec.
 FROM gcr.io/distroless/static:nonroot
 
-COPY statable /usr/bin/statable
+# One build context serves every platform, so the binaries sit under their own
+# platform directories and the COPY has to name the one buildx is currently
+# building: `linux/amd64/statable`, `linux/arm64/statable`.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/statable /usr/bin/statable
 
 # There is no keyring in a container and no home directory to fall back to, so
 # the key comes from STATABLE_API_KEY. The CLI already refuses to prompt when it
