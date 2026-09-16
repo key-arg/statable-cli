@@ -8,6 +8,8 @@ release may add commands and flags but does not remove or rename them.
 
 ## Unreleased
 
+## [0.4.3] — 2026-09-16
+
 ### Fixed
 
 - A failed `check` no longer labels its own failure `ok`. The line a person
