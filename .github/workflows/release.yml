@@ -64,3 +64,7 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           AUR_KEY: ${{ secrets.AUR_KEY }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          # The bucket lives in another repository, like the tap, so the
+          # default token cannot write to it. Falls back to the tap token
+          # when that one already reaches every key-arg repository.
+          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}

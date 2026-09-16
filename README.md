@@ -27,6 +27,13 @@ brew install key-arg/tap/statable
 go install github.com/key-arg/statable-cli/cmd/statable@latest
 ```
 
+**Windows, with Scoop**
+
+```powershell
+scoop bucket add statable https://github.com/key-arg/scoop-bucket
+scoop install statable
+```
+
 **mise**
 
 ```bash

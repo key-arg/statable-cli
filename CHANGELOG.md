@@ -8,6 +8,11 @@ release may add commands and flags but does not remove or rename them.
 
 ## Unreleased
 
+### Added
+
+- A Scoop bucket for Windows: `scoop bucket add statable
+  https://github.com/key-arg/scoop-bucket` then `scoop install statable`.
+
 ## [0.4.3] — 2026-09-16
 
 ### Fixed

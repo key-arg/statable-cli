@@ -210,6 +210,24 @@ dockers_v2:
       org.opencontainers.image.licenses: MIT
       org.opencontainers.image.vendor: Key Arg B.V.
 
+# Scoop is the other Windows installer, and its model is the tap model: a
+# bucket repository we own, so there is no queue and no reviewer. The manifest
+# stays in the root of that repository -- `scoop bucket list` reports zero
+# manifests for a bucket that keeps them in a subdirectory.
+scoops:
+  - name: statable
+    ids: [statable]
+    homepage: https://statable.com
+    description: Read your Statable analytics from a terminal, a script, or CI
+    license: MIT
+    # Same split as the cask: skip_upload is a plain template, token is a
+    # secret field and must be the bare {{ .Env.NAME }} form.
+    skip_upload: '{{ if index .Env "SCOOP_BUCKET_TOKEN" }}false{{ else }}true{{ end }}'
+    repository:
+      owner: key-arg
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+
 # The AUR package is published by the release itself, so its checksums can
 # never drift from the artefacts they describe -- which is the failure mode of
 # a hand-maintained PKGBUILD.
