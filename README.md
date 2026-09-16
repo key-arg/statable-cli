@@ -27,6 +27,12 @@ brew install key-arg/tap/statable
 go install github.com/key-arg/statable-cli/cmd/statable@latest
 ```
 
+**Windows, with winget**
+
+```powershell
+winget install KeyArg.Statable
+```
+
 **Windows, with Scoop**
 
 ```powershell

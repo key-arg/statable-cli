@@ -10,6 +10,9 @@ release may add commands and flags but does not remove or rename them.
 
 ### Added
 
+- Windows installs through winget: `winget install KeyArg.Statable`. The
+  manifest is opened as a pull request against microsoft/winget-pkgs by the
+  release itself, so it cannot drift from the artefacts it describes.
 - A Scoop bucket for Windows: `scoop bucket add statable
   https://github.com/key-arg/scoop-bucket` then `scoop install statable`.
 

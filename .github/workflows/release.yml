@@ -68,3 +68,7 @@ jobs:
           # default token cannot write to it. Falls back to the tap token
           # when that one already reaches every key-arg repository.
           SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+          # Pushes a branch to our fork of winget-pkgs and opens the pull
+          # request against Microsoft's repository, so it needs a token that
+          # reaches both.
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}

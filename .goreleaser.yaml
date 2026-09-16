@@ -210,6 +210,50 @@ dockers_v2:
       org.opencontainers.image.licenses: MIT
       org.opencontainers.image.vendor: Key Arg B.V.
 
+# winget is the installer that ships with Windows, and the only one of these
+# whose manifest lives in somebody else's repository: the release opens a pull
+# request against microsoft/winget-pkgs from our fork. Three catalogues
+# (winstall.app and two others) rebuild themselves from that repository, so one
+# merged manifest is also how Windows users find this at all.
+winget:
+  - name: statable
+    package_identifier: KeyArg.Statable
+    publisher: Key Arg B.V.
+    publisher_url: https://statable.com
+    publisher_support_url: https://github.com/key-arg/statable-cli/issues
+    homepage: https://statable.com
+    short_description: Read your Statable analytics from a terminal, a script, or CI
+    description: |-
+      The command-line client for Statable, cookieless web analytics hosted in
+      the EU. It reads visitors, pageviews, sources, pages, goals and funnels
+      over the Stats API and prints them as a table, JSON or CSV, and it can
+      create and edit sites, goals and funnels as well. Threshold checks for CI
+      exit 0 within bounds and 3 outside them.
+    license: MIT
+    license_url: https://github.com/key-arg/statable-cli/blob/main/LICENSE
+    copyright: Key Arg B.V.
+    release_notes_url: "https://github.com/key-arg/statable-cli/releases/tag/{{ .Tag }}"
+    tags:
+      - analytics
+      - cli
+      - privacy
+      - web-analytics
+    # Same guard as every other publisher here: no token, no manifest, and the
+    # rest of the release goes out as usual.
+    skip_upload: '{{ if index .Env "WINGET_TOKEN" }}false{{ else }}true{{ end }}'
+    repository:
+      owner: key-arg
+      name: winget-pkgs
+      branch: "statable-{{ .Version }}"
+      token: "{{ .Env.WINGET_TOKEN }}"
+      pull_request:
+        enabled: true
+        draft: false
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
+
 # Scoop is the other Windows installer, and its model is the tap model: a
 # bucket repository we own, so there is no queue and no reviewer. The manifest
 # stays in the root of that repository -- `scoop bucket list` reports zero
