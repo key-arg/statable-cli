@@ -8,6 +8,14 @@ release may add commands and flags but does not remove or rename them.
 
 ## Unreleased
 
+## [0.4.1] — 2026-09-16
+
+### Fixed
+
+- The container image 0.4.0 describes is actually published. The release that
+  introduced it ran with an empty Docker Hub token, so the image build was
+  skipped exactly as designed and the archives went out alone.
+
 ## [0.4.0] — 2026-09-16
 
 ### Added
