@@ -132,7 +132,10 @@ func newCheckCmd() *cobra.Command {
 			if !within {
 				verdict = because
 			}
-			rec = append(rec, output.Field{Name: "ok", Value: within, Human: verdict})
+			// `ok` is what a script reads; a person reads `result`, because
+			// "ok: below the minimum of 100" announces a pass and then
+			// describes a failure.
+			rec = append(rec, output.Field{Name: "ok", Label: "result", Value: within, Human: verdict})
 
 			if pair := resp.ResolvedRange(); len(pair) > 0 {
 				rt.Out.Note("period: %s", query.DescribeRange(pair))

@@ -412,6 +412,19 @@ type Field struct {
 	// OmitHuman drops the field from human output only, for values that are
 	// meaningful to a script but noise on a screen.
 	OmitHuman bool
+	// Label overrides the name shown to a person. The key a script reads
+	// stays Name, so a field can be `ok` in JSON and still print a label
+	// that does not contradict its own value: "ok: below the minimum" reads
+	// as a pass of something that failed.
+	Label string
+}
+
+// label is what a person sees on the left of the colon.
+func (f Field) label() string {
+	if f.Label != "" {
+		return f.Label
+	}
+	return f.Name
 }
 
 // Record is a result with exactly one row: a version, an auth status, a single
@@ -465,7 +478,7 @@ func (w *Writer) EmitRecord(r Record) error {
 			}
 			// The rendered label carries a colon, so the width has to
 			// account for it or the longest name overflows its own column.
-			if n := displayWidth(f.Name) + 1; n > width {
+			if n := displayWidth(f.label()) + 1; n > width {
 				width = n
 			}
 		}
@@ -477,7 +490,7 @@ func (w *Writer) EmitRecord(r Record) error {
 			if v == "" {
 				v = flatten(f.Value)
 			}
-			fmt.Fprintf(w.human, "%-*s  %s\n", width, f.Name+":", sanitize(v))
+			fmt.Fprintf(w.human, "%-*s  %s\n", width, f.label()+":", sanitize(v))
 		}
 		return nil
 	}

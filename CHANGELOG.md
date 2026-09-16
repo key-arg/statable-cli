@@ -8,6 +8,12 @@ release may add commands and flags but does not remove or rename them.
 
 ## Unreleased
 
+### Fixed
+
+- A failed `check` no longer labels its own failure `ok`. The line a person
+  reads is now `result: below the minimum of 100`; scripts still read `ok`
+  in JSON and CSV, and the exit code is unchanged.
+
 ## [0.4.2] — 2026-09-16
 
 ### Fixed
