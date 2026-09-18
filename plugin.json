@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "statable-cli",
+  "version": "0.4.4",
+  "description": "Read and configure Statable web analytics from a terminal, a script or a CI step. Skills for a traffic check in CI and for pulling numbers into a report, built on the statable command.",
+  "author": {
+    "name": "Key Arg B.V.",
+    "url": "https://statable.com"
+  },
+  "homepage": "https://statable.com/docs/cli/",
+  "repository": "https://github.com/key-arg/statable-cli",
+  "license": "MIT",
+  "keywords": [
+    "analytics",
+    "web-analytics",
+    "cli",
+    "ci",
+    "privacy",
+    "cookieless"
+  ]
+}
